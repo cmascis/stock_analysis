@@ -8,3 +8,8 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Other
+company_jsons/
+.DS_Store
+db.sqlite3
