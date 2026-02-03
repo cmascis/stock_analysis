@@ -1,0 +1,80 @@
+/* stocks.css */
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  line-height: 1.4;
+}
+
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.site-header {
+  border-bottom: 1px solid #ddd;
+  background: #fff;
+}
+
+.header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.brand-link {
+  font-weight: 700;
+  text-decoration: none;
+  color: inherit;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.nav a {
+  text-decoration: none;
+}
+
+.nav-spacer { flex: 1; }
+
+.nav-user {
+  color: #444;
+  font-size: 0.95rem;
+}
+
+.nav-form { margin: 0; }
+
+button.linkish {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: #06c;
+  font: inherit;
+}
+
+button.linkish:hover { text-decoration: underline; }
+
+.messages {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0;
+}
+
+.message {
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+
+.site-footer {
+  border-top: 1px solid #ddd;
+  margin-top: 32px;
+  color: #666;
+}

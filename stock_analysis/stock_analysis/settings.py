@@ -123,3 +123,8 @@ STATIC_URL = 'static/'
 # INTERNAL_IPS = [
 #     '127.0.0.1',
 # ]
+
+
+LOGIN_URL = "login"
+LOGIN_REDIRECT_URL = "/"        # where to go after login
+LOGOUT_REDIRECT_URL = "/"       # where to go after logout

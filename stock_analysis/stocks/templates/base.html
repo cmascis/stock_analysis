@@ -1,0 +1,58 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% block title %}Stock Analysis{% endblock %}</title>
+
+    <link rel="stylesheet" href="{% static 'css/stocks.css' %}">
+  </head>
+
+  <body>
+    <header class="site-header">
+      <div class="container header-inner">
+        <div class="brand">
+          <a href="{% url 'home' %}" class="brand-link">Stock Analysis</a>
+        </div>
+
+        <nav class="nav">
+          <a href="{% url 'home' %}">Home</a>
+          {# Later: add stock list page link when you build it #}
+          {# <a href="{% url 'stock_list' %}">Stocks</a> #}
+
+          <span class="nav-spacer"></span>
+
+          {% if user.is_authenticated %}
+            <span class="nav-user">Hi, {{ user.username }}</span>
+            <form method="post" action="{% url 'logout' %}" class="nav-form">
+              {% csrf_token %}
+              <button type="submit" class="linkish">Logout</button>
+            </form>
+          {% else %}
+            <a href="{% url 'login' %}">Login</a>
+            <a href="{% url 'signup' %}">Sign up</a>
+          {% endif %}
+        </nav>
+      </div>
+    </header>
+
+    <main class="container">
+      {% if messages %}
+        <ul class="messages">
+          {% for message in messages %}
+            <li class="message {{ message.tags }}">{{ message }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+
+      {% block content %}{% endblock %}
+    </main>
+
+    <footer class="site-footer">
+      <div class="container">
+        <small>© {% now "Y" %} Stock Analysis</small>
+      </div>
+    </footer>
+  </body>
+</html>

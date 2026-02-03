@@ -16,8 +16,14 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from investor import views as investor_views
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path("admin/", admin.site.urls),
+
+    path("accounts/", include("django.contrib.auth.urls")),
+    path("accounts/signup/", investor_views.signup, name="signup"),
+
+    path("", include("stocks.urls")),
     # path('__debug__/', include('debug_toolbar.urls')),
 ]

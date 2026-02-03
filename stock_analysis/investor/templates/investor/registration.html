@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Sign up · Stock Analysis{% endblock %}
+
+{% block content %}
+  <h1>Create an account</h1>
+
+  <form method="post">
+    {% csrf_token %}
+
+    {{ form.non_field_errors }}
+
+    <p>
+      <label for="{{ form.username.id_for_label }}">Username</label><br />
+      {{ form.username }}
+      {{ form.username.errors }}
+    </p>
+
+    <p>
+      <label for="{{ form.password1.id_for_label }}">Password</label><br />
+      {{ form.password1 }}
+      {{ form.password1.errors }}
+    </p>
+
+    <p>
+      <label for="{{ form.password2.id_for_label }}">Confirm password</label><br />
+      {{ form.password2 }}
+      {{ form.password2.errors }}
+    </p>
+
+    <button type="submit">Sign up</button>
+  </form>
+
+  <p>
+    Already have an account?
+    <a href="{% url 'login' %}">Log in</a>
+  </p>
+{% endblock %}

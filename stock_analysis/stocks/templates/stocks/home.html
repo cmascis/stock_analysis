@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}Home · Stock Analysis{% endblock %}
+
+{% block content %}
+  <h1>Market dashboard</h1>
+
+  <section>
+    <h2>Top upside stocks</h2>
+
+    <div style="display:flex; gap:32px; flex-wrap:wrap;">
+      <div>
+        <h3>Past 7 days</h3>
+        <table>
+          <thead>
+            <tr><th>Stock</th><th>Max Upside</th></tr>
+          </thead>
+          <tbody>
+            {% for s in top_upside_7d %}
+              <tr>
+                <td>{{ s.ticker }} {{ s.region }}</td>
+                <td>{{ s.max_upside|floatformat:3 }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="2">No data.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div>
+        <h3>Past 30 days</h3>
+        <table>
+          <thead>
+            <tr><th>Stock</th><th>Max Upside</th></tr>
+          </thead>
+          <tbody>
+            {% for s in top_upside_30d %}
+              <tr>
+                <td>{{ s.ticker }} {{ s.region }}</td>
+                <td>{{ s.max_upside|floatformat:3 }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="2">No data.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Most reported on</h2>
+
+    <div style="display:flex; gap:32px; flex-wrap:wrap;">
+      <div>
+        <h3>Past 30 days</h3>
+        <table>
+          <thead>
+            <tr><th>Stock</th><th># Reports</th></tr>
+          </thead>
+          <tbody>
+            {% for s in most_reported_30d %}
+              <tr>
+                <td>{{ s.ticker }} {{ s.region }}</td>
+                <td>{{ s.report_count }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="2">No data.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div>
+        <h3>Past 365 days</h3>
+        <table>
+          <thead>
+            <tr><th>Stock</th><th># Reports</th></tr>
+          </thead>
+          <tbody>
+            {% for s in most_reported_365d %}
+              <tr>
+                <td>{{ s.ticker }} {{ s.region }}</td>
+                <td>{{ s.report_count }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="2">No data.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <p style="margin-top:16px; color:#555;">
+      Charts below show Price vs Price Objective for the top {{ chart_stocks_30d|length }} most-reported stocks in each window.
+    </p>
+
+    <div id="charts-30d">
+      <h3>Charts: past 30 days</h3>
+      {% for s in chart_stocks_30d %}
+        <div style="margin: 12px 0;">
+          <strong>{{ s.ticker }} {{ s.region }}</strong>
+          <canvas id="chart30d-{{ s.id }}" height="120"></canvas>
+        </div>
+      {% endfor %}
+    </div>
+
+    <div id="charts-365d" style="margin-top:24px;">
+      <h3>Charts: past 365 days</h3>
+      {% for s in chart_stocks_365d %}
+        <div style="margin: 12px 0;">
+          <strong>{{ s.ticker }} {{ s.region }}</strong>
+          <canvas id="chart365d-{{ s.id }}" height="120"></canvas>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section>
+    <h2>Recent downgrades to UNDERPERFORM</h2>
+    <p>Most recent 5 reports where the prior rating for the stock was BUY or NEUTRAL.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>When</th>
+          <th>Stock</th>
+          <th>Prev Rating</th>
+          <th>New Rating</th>
+          <th>Blurb</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in recent_downgrades %}
+          <tr>
+            <td>{{ r.as_of_timestamp }}</td>
+            <td>{{ r.stock.ticker }} {{ r.stock.region }}</td>
+            <td>{{ r.prev_rating }}</td>
+            <td>{{ r.rating }}</td>
+            <td>{{ r.blurb|truncatechars:120 }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5">No downgrades found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endblock %}
