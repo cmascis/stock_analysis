@@ -6,5 +6,9 @@ from .models import InvestorProfile
 
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
 def create_profile(sender, instance, created, **kwargs):
+    # When loading fixtures, Django saves with raw=True. Skip signal to avoid duplicates.
+    if kwargs.get("raw", False):
+        return
+
     if created:
-        InvestorProfile.objects.create(user=instance)
+        InvestorProfile.objects.get_or_create(user=instance)
