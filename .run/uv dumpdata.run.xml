@@ -3,6 +3,19 @@
     <option name="args">
       <list>
         <option value="dumpdata" />
+        <option value="auth.user" />
+        <option value="investor" />
+        <option value="stocks" />
+        <option value="--natural-foreign" />
+        <option value="--natural-primary" />
+        <option value="--exclude" />
+        <option value="contenttypes" />
+        <option value="--exclude" />
+        <option value="auth.permission" />
+        <option value="--exclude" />
+        <option value="admin.logentry" />
+        <option value="--exclude" />
+        <option value="sessions" />
         <option value="--indent=2" />
         <option value="--output=mysite_data.json" />
       </list>
