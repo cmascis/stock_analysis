@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load humanize %}
 
 {% block title %}Stock Analysis | Home{% endblock %}
 
@@ -13,20 +14,20 @@
             <div class="metrics-grid">
                 <article class="metric-card reveal delay-1">
                     <span class="metric-label">Holdings</span>
-                    <span class="metric-value">{{ holdings_count }}</span>
+                    <span class="metric-value">{{ holdings_count|intcomma }}</span>
                 </article>
                 <article class="metric-card reveal delay-1">
                     <span class="metric-label">Watchlist</span>
-                    <span class="metric-value">{{ watchlist_count }}</span>
+                    <span class="metric-value">{{ watchlist_count|intcomma }}</span>
                 </article>
                 <article class="metric-card reveal delay-2">
                     <span class="metric-label">Position Value</span>
-                    <span class="metric-value">${{ total_position_value|floatformat:2 }}</span>
+                    <span class="metric-value">${{ total_position_value|floatformat:2|intcomma }}</span>
                 </article>
                 <article class="metric-card reveal delay-2">
                     <span class="metric-label">Target Delta</span>
                     <span class="metric-value {% if total_target_change < 0 %}neg{% endif %}">
-                        {% if total_target_change > 0 %}+{% endif %}${{ total_target_change|floatformat:2 }}
+                        {% if total_target_change > 0 %}+{% endif %}${{ total_target_change|floatformat:2|intcomma }}
                     </span>
                 </article>
             </div>
@@ -80,23 +81,23 @@
                                         </strong>
                                         <div class="subtle">{{ row.stock.company_name }}</div>
                                     </td>
-                                    <td>{{ row.quantity|floatformat:4 }}</td>
-                                    <td>{% if row.avg_cost is not None %}${{ row.avg_cost|floatformat:2 }}{% else %}-{% endif %}</td>
-                                    <td>{% if row.price is not None %}${{ row.price|floatformat:2 }}{% else %}-{% endif %}</td>
-                                    <td>{% if row.price_objective is not None %}${{ row.price_objective|floatformat:2 }}{% else %}-{% endif %}</td>
-                                    <td>{% if row.upside_pct is not None %}{{ row.upside_pct|floatformat:2 }}%{% else %}-{% endif %}</td>
+                                    <td>{{ row.quantity|floatformat:4|intcomma }}</td>
+                                    <td>{% if row.avg_cost is not None %}${{ row.avg_cost|floatformat:2|intcomma }}{% else %}-{% endif %}</td>
+                                    <td>{% if row.price is not None %}${{ row.price|floatformat:2|intcomma }}{% else %}-{% endif %}</td>
+                                    <td>{% if row.price_objective is not None %}${{ row.price_objective|floatformat:2|intcomma }}{% else %}-{% endif %}</td>
+                                    <td>{% if row.upside_pct is not None %}{{ row.upside_pct|floatformat:2|intcomma }}%{% else %}-{% endif %}</td>
                                     <td>{% if row.rating %}{{ row.rating|cut:"_"|title }}{% else %}-{% endif %}</td>
-                                    <td>{% if row.position_value is not None %}${{ row.position_value|floatformat:2 }}{% else %}-{% endif %}</td>
+                                    <td>{% if row.position_value is not None %}${{ row.position_value|floatformat:2|intcomma }}{% else %}-{% endif %}</td>
                                     <td>
                                         {% if row.target_change_value is not None %}
                                             <span class="{% if row.target_change_value < 0 %}neg{% endif %}">
-                                                {% if row.target_change_value > 0 %}+{% endif %}${{ row.target_change_value|floatformat:2 }}
+                                                {% if row.target_change_value > 0 %}+{% endif %}${{ row.target_change_value|floatformat:2|intcomma }}
                                             </span>
                                         {% else %}
                                             -
                                         {% endif %}
                                     </td>
-                                    <td>{% if row.report_at %}{{ row.report_at|date:"M j, Y H:i" }}{% else %}-{% endif %}</td>
+                                    <td>{% if row.report_at %}{{ row.report_at|date:"M j, Y" }}{% else %}-{% endif %}</td>
                                 </tr>
                             {% endfor %}
                         </tbody>
@@ -124,15 +125,15 @@
                             <p class="subtle">{{ row.stock.company_name }}</p>
                             <dl>
                                 <dt>Latest price</dt>
-                                <dd>{% if row.price is not None %}${{ row.price|floatformat:2 }}{% else %}-{% endif %}</dd>
+                                <dd>{% if row.price is not None %}${{ row.price|floatformat:2|intcomma }}{% else %}-{% endif %}</dd>
                                 <dt>Price objective</dt>
-                                <dd>{% if row.price_objective is not None %}${{ row.price_objective|floatformat:2 }}{% else %}-{% endif %}</dd>
+                                <dd>{% if row.price_objective is not None %}${{ row.price_objective|floatformat:2|intcomma }}{% else %}-{% endif %}</dd>
                                 <dt>Upside</dt>
-                                <dd>{% if row.upside_pct is not None %}{{ row.upside_pct|floatformat:2 }}%{% else %}-{% endif %}</dd>
+                                <dd>{% if row.upside_pct is not None %}{{ row.upside_pct|floatformat:2|intcomma }}%{% else %}-{% endif %}</dd>
                                 <dt>Rating</dt>
                                 <dd>{% if row.rating %}{{ row.rating|cut:"_"|title }}{% else %}-{% endif %}</dd>
                                 <dt>As of</dt>
-                                <dd>{% if row.report_at %}{{ row.report_at|date:"M j, Y H:i" }}{% else %}-{% endif %}</dd>
+                                <dd>{% if row.report_at %}{{ row.report_at|date:"M j, Y" }}{% else %}-{% endif %}</dd>
                             </dl>
                         </article>
                     {% endfor %}
@@ -151,7 +152,7 @@
                 {% for window in report_windows %}
                     <article class="window-card">
                         <h3>{{ window.label }}</h3>
-                        <p class="subtle">{{ window.report_count }} report{{ window.report_count|pluralize }}</p>
+                        <p class="subtle">{{ window.report_count|intcomma }} report{{ window.report_count|pluralize }}</p>
 
                         <div class="window-metric">
                             <span>Best upside</span>
@@ -160,7 +161,7 @@
                                     <a class="stock-link" href="{% url 'stock_detail' window.best_upside.stock.id %}">
                                         {{ window.best_upside.stock.ticker }} {{ window.best_upside.stock.region }}
                                     </a>
-                                    ({{ window.best_upside.upside_pct|floatformat:2 }}%)
+                                    ({{ window.best_upside.upside_pct|floatformat:2|intcomma }}%)
                                 </strong>
                                 <small>{{ window.best_upside.company_name }}</small>
                             {% else %}
@@ -175,7 +176,7 @@
                                     <a class="stock-link" href="{% url 'stock_detail' window.most_reported.stock_id %}">
                                         {{ window.most_reported.ticker }} {{ window.most_reported.region }}
                                     </a>
-                                    ({{ window.most_reported.report_count }} reports)
+                                    ({{ window.most_reported.report_count|intcomma }} reports)
                                 </strong>
                                 <small>{{ window.most_reported.company_name }}</small>
                             {% else %}
@@ -190,9 +191,9 @@
                                     <a class="stock-link" href="{% url 'stock_detail' window.largest_upgrade.stock.id %}">
                                         {{ window.largest_upgrade.stock.ticker }} {{ window.largest_upgrade.stock.region }}
                                     </a>
-                                    (+${{ window.largest_upgrade.upgrade_amount|floatformat:2 }})
+                                    (+${{ window.largest_upgrade.upgrade_amount|floatformat:2|intcomma }})
                                 </strong>
-                                <small>{{ window.largest_upgrade.company_name }}: ${{ window.largest_upgrade.from_objective|floatformat:2 }} -> ${{ window.largest_upgrade.to_objective|floatformat:2 }}</small>
+                                <small>{{ window.largest_upgrade.company_name }}: ${{ window.largest_upgrade.from_objective|floatformat:2|intcomma }} -> ${{ window.largest_upgrade.to_objective|floatformat:2|intcomma }}</small>
                             {% else %}
                                 <strong>-</strong>
                             {% endif %}

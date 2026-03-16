@@ -524,6 +524,7 @@ h2 {
     background: var(--surface-strong);
     border: 1px solid var(--line);
     border-radius: 14px;
+    height: 360px;
     overflow: hidden;
     padding: 10px;
 }
@@ -536,6 +537,7 @@ h2 {
 .report-controls {
     align-items: center;
     display: flex;
+    flex-wrap: wrap;
     gap: 10px;
 }
 
@@ -543,6 +545,28 @@ h2 {
     display: inline-block;
     min-width: 72px;
     text-align: center;
+}
+
+.report-select-wrap {
+    align-items: center;
+    display: inline-flex;
+    gap: 8px;
+    margin-left: auto;
+}
+
+.report-select {
+    background: #fff;
+    border: 1px solid rgba(20, 55, 42, 0.22);
+    border-radius: 10px;
+    color: var(--text);
+    font: inherit;
+    min-width: 185px;
+    padding: 8px 10px;
+}
+
+.report-select:focus {
+    border-color: #0d6a58;
+    outline: 3px solid rgba(13, 106, 88, 0.18);
 }
 
 .report-carousel {
@@ -650,6 +674,15 @@ h2 {
     .report-controls .btn {
         flex: 1;
         justify-content: center;
+    }
+
+    .report-select-wrap {
+        margin-left: 0;
+        width: 100%;
+    }
+
+    .report-select {
+        width: 100%;
     }
 }
 

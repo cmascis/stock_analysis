@@ -243,9 +243,21 @@ def stock_detail(request, stock_id):
         .order_by("-as_of_timestamp")
     )
 
-    chart_reports = [report for report in reversed(reports) if report.price_objective is not None]
+    chart_reports = [
+        report
+        for report in reversed(reports)
+        if report.price is not None or report.price_objective is not None
+    ]
     chart_labels = [report.as_of_timestamp.strftime("%Y-%m-%d") for report in chart_reports]
-    chart_values = [float(report.price_objective) for report in chart_reports]
+    chart_price_values = [float(report.price) if report.price is not None else None for report in chart_reports]
+    chart_objective_values = [
+        float(report.price_objective) if report.price_objective is not None else None
+        for report in chart_reports
+    ]
+    chart_has_data = any(
+        value is not None
+        for value in (chart_price_values + chart_objective_values)
+    )
 
     latest_report = reports[0] if reports else None
     previous_report = reports[1] if len(reports) > 1 else None
@@ -266,6 +278,8 @@ def stock_detail(request, stock_id):
         "latest_upside_pct": _to_percent(latest_report.upside) if latest_report else None,
         "objective_change": objective_change,
         "chart_labels": chart_labels,
-        "chart_values": chart_values,
+        "chart_price_values": chart_price_values,
+        "chart_objective_values": chart_objective_values,
+        "chart_has_data": chart_has_data,
     }
     return render(request, "stocks/stock_detail.html", context)

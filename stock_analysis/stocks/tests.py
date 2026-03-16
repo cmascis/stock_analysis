@@ -114,3 +114,5 @@ class HomeViewTests(TestCase):
         self.assertContains(response, "Second report blurb.")
         self.assertContains(response, "Demand remains strong.")
         self.assertContains(response, "objective-chart")
+        self.assertContains(response, "data-report-select")
+        self.assertContains(response, "price-values")
