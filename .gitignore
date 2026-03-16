@@ -14,3 +14,5 @@ company_jsons/
 .DS_Store
 db.sqlite3
 .idea/
+
+mysite_data.json
