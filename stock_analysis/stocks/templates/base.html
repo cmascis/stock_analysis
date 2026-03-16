@@ -24,7 +24,26 @@
                 <span>Stock Analysis</span>
             </a>
 
+            <div
+                class="header-search"
+                data-stock-search
+                data-search-url="{% url 'stock_search_suggestions' %}"
+                data-advanced-url="{% url 'advanced_stock_search' %}"
+            >
+                <label class="sr-only" for="stock-search-input">Search stocks</label>
+                <input
+                    id="stock-search-input"
+                    type="search"
+                    placeholder="Search ticker or company..."
+                    autocomplete="off"
+                    spellcheck="false"
+                    data-search-input
+                >
+                <div class="search-popover" data-search-results hidden></div>
+            </div>
+
             <nav class="site-nav">
+                <a class="btn btn-ghost" href="{% url 'advanced_stock_search' %}">Advanced Search</a>
                 {% if user.is_authenticated %}
                     <a class="btn btn-ghost" href="{% url 'admin:index' %}">Admin</a>
                     <form method="post" action="{% url 'logout' %}">
@@ -42,5 +61,122 @@
             {% block content %}{% endblock %}
         </main>
     </div>
+
+    <script>
+    (() => {
+      const root = document.querySelector("[data-stock-search]");
+      if (!root) {
+        return;
+      }
+
+      const input = root.querySelector("[data-search-input]");
+      const popover = root.querySelector("[data-search-results]");
+      const searchUrl = root.dataset.searchUrl;
+      const advancedUrl = root.dataset.advancedUrl;
+
+      let debounceTimer = null;
+      let requestController = null;
+
+      const closePopover = () => {
+        popover.hidden = true;
+        popover.innerHTML = "";
+        root.classList.remove("open");
+      };
+
+      const renderPopover = (results, query) => {
+        popover.innerHTML = "";
+
+        if (results.length) {
+          const list = document.createElement("ul");
+          list.className = "search-result-list";
+          results.forEach((item) => {
+            const li = document.createElement("li");
+            const link = document.createElement("a");
+            const ticker = document.createElement("strong");
+            ticker.textContent = `${item.ticker} ${item.region}`;
+            const company = document.createElement("span");
+            company.textContent = item.company_name;
+            link.href = item.url;
+            link.append(ticker, company);
+            li.append(link);
+            list.append(li);
+          });
+          popover.append(list);
+        } else {
+          const empty = document.createElement("p");
+          empty.className = "search-empty";
+          empty.textContent = "No matching stocks.";
+          popover.append(empty);
+        }
+
+        const footer = document.createElement("div");
+        footer.className = "search-footer";
+        const advancedLink = document.createElement("a");
+        advancedLink.className = "stock-link";
+        advancedLink.href = query ? `${advancedUrl}?q=${encodeURIComponent(query)}` : advancedUrl;
+        advancedLink.textContent = "Advanced search";
+        footer.append(advancedLink);
+        popover.append(footer);
+
+        popover.hidden = false;
+        root.classList.add("open");
+      };
+
+      input.addEventListener("input", () => {
+        const query = input.value.trim();
+        if (!query) {
+          closePopover();
+          return;
+        }
+
+        clearTimeout(debounceTimer);
+        debounceTimer = window.setTimeout(async () => {
+          if (requestController) {
+            requestController.abort();
+          }
+          requestController = new AbortController();
+
+          try {
+            const response = await fetch(`${searchUrl}?q=${encodeURIComponent(query)}`, {
+              signal: requestController.signal,
+              headers: {
+                "X-Requested-With": "XMLHttpRequest",
+              },
+            });
+            if (!response.ok) {
+              closePopover();
+              return;
+            }
+
+            const payload = await response.json();
+            renderPopover(payload.results || [], query);
+          } catch (error) {
+            if (error.name !== "AbortError") {
+              closePopover();
+            }
+          }
+        }, 160);
+      });
+
+      input.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          closePopover();
+          return;
+        }
+
+        if (event.key === "Enter") {
+          event.preventDefault();
+          const query = input.value.trim();
+          window.location.href = query ? `${advancedUrl}?q=${encodeURIComponent(query)}` : advancedUrl;
+        }
+      });
+
+      document.addEventListener("click", (event) => {
+        if (!root.contains(event.target)) {
+          closePopover();
+        }
+      });
+    })();
+    </script>
 </body>
 </html>
