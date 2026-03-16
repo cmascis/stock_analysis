@@ -76,7 +76,41 @@ class HomeViewTests(TestCase):
         self.assertContains(response, "Report Leaders by Time Window")
         self.assertContains(response, "AAPL US")
         self.assertContains(response, "MSFT US")
+        self.assertContains(response, reverse("stock_detail", args=[aapl.id]))
+        self.assertContains(response, reverse("stock_detail", args=[msft.id]))
 
         self.assertEqual(len(response.context["holdings_rows"]), 1)
         self.assertEqual(len(response.context["watchlist_rows"]), 2)
         self.assertEqual(len(response.context["report_windows"]), 3)
+
+    def test_stock_detail_page_shows_chart_and_reports(self):
+        stock = Stock.objects.create(ticker="NVDA", region="US", company_name="NVIDIA Corp.")
+        now = timezone.now()
+        first_report = DailyReport.objects.create(
+            stock=stock,
+            as_of_timestamp=now - timedelta(days=2),
+            price=Decimal("900.00"),
+            price_objective=Decimal("980.00"),
+            upside=Decimal("0.0888"),
+            rating="BUY",
+            blurb="First report blurb.",
+        )
+        DailyReport.objects.create(
+            stock=stock,
+            as_of_timestamp=now - timedelta(days=1),
+            price=Decimal("915.00"),
+            price_objective=Decimal("1010.00"),
+            upside=Decimal("0.1038"),
+            rating="BUY",
+            blurb="Second report blurb.",
+        )
+        first_report.key_takeaways.create(order=0, text="Demand remains strong.")
+
+        response = self.client.get(reverse("stock_detail", args=[stock.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Price Objective Over Time")
+        self.assertContains(response, "Report Timeline")
+        self.assertContains(response, "Second report blurb.")
+        self.assertContains(response, "Demand remains strong.")
+        self.assertContains(response, "objective-chart")

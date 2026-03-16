@@ -73,7 +73,11 @@
                             {% for row in holdings_rows %}
                                 <tr>
                                     <td>
-                                        <strong>{{ row.stock.ticker }} {{ row.stock.region }}</strong>
+                                        <strong>
+                                            <a class="stock-link" href="{% url 'stock_detail' row.stock.id %}">
+                                                {{ row.stock.ticker }} {{ row.stock.region }}
+                                            </a>
+                                        </strong>
                                         <div class="subtle">{{ row.stock.company_name }}</div>
                                     </td>
                                     <td>{{ row.quantity|floatformat:4 }}</td>
@@ -112,7 +116,11 @@
                 <div class="watch-grid">
                     {% for row in watchlist_rows|slice:":8" %}
                         <article class="watch-card">
-                            <h3>{{ row.stock.ticker }} {{ row.stock.region }}</h3>
+                            <h3>
+                                <a class="stock-link" href="{% url 'stock_detail' row.stock.id %}">
+                                    {{ row.stock.ticker }} {{ row.stock.region }}
+                                </a>
+                            </h3>
                             <p class="subtle">{{ row.stock.company_name }}</p>
                             <dl>
                                 <dt>Latest price</dt>
@@ -148,7 +156,12 @@
                         <div class="window-metric">
                             <span>Best upside</span>
                             {% if window.best_upside %}
-                                <strong>{{ window.best_upside.stock.ticker }} {{ window.best_upside.stock.region }} ({{ window.best_upside.upside_pct|floatformat:2 }}%)</strong>
+                                <strong>
+                                    <a class="stock-link" href="{% url 'stock_detail' window.best_upside.stock.id %}">
+                                        {{ window.best_upside.stock.ticker }} {{ window.best_upside.stock.region }}
+                                    </a>
+                                    ({{ window.best_upside.upside_pct|floatformat:2 }}%)
+                                </strong>
                                 <small>{{ window.best_upside.company_name }}</small>
                             {% else %}
                                 <strong>-</strong>
@@ -158,7 +171,12 @@
                         <div class="window-metric">
                             <span>Most reported</span>
                             {% if window.most_reported %}
-                                <strong>{{ window.most_reported.ticker }} {{ window.most_reported.region }} ({{ window.most_reported.report_count }} reports)</strong>
+                                <strong>
+                                    <a class="stock-link" href="{% url 'stock_detail' window.most_reported.stock_id %}">
+                                        {{ window.most_reported.ticker }} {{ window.most_reported.region }}
+                                    </a>
+                                    ({{ window.most_reported.report_count }} reports)
+                                </strong>
                                 <small>{{ window.most_reported.company_name }}</small>
                             {% else %}
                                 <strong>-</strong>
@@ -168,7 +186,12 @@
                         <div class="window-metric">
                             <span>Largest objective upgrade</span>
                             {% if window.largest_upgrade %}
-                                <strong>{{ window.largest_upgrade.stock.ticker }} {{ window.largest_upgrade.stock.region }} (+${{ window.largest_upgrade.upgrade_amount|floatformat:2 }})</strong>
+                                <strong>
+                                    <a class="stock-link" href="{% url 'stock_detail' window.largest_upgrade.stock.id %}">
+                                        {{ window.largest_upgrade.stock.ticker }} {{ window.largest_upgrade.stock.region }}
+                                    </a>
+                                    (+${{ window.largest_upgrade.upgrade_amount|floatformat:2 }})
+                                </strong>
                                 <small>{{ window.largest_upgrade.company_name }}: ${{ window.largest_upgrade.from_objective|floatformat:2 }} -> ${{ window.largest_upgrade.to_objective|floatformat:2 }}</small>
                             {% else %}
                                 <strong>-</strong>

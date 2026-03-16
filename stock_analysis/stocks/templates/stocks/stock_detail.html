@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+
+{% block title %}Stock Analysis | {{ stock.ticker }} {{ stock.region }}{% endblock %}
+
+{% block content %}
+    <section class="hero reveal">
+        <p class="eyebrow">Stock Detail</p>
+        <h1>{{ stock.ticker }} {{ stock.region }}</h1>
+        <p class="lead">{{ stock.company_name }}</p>
+
+        <div class="metrics-grid">
+            <article class="metric-card">
+                <span class="metric-label">Reports</span>
+                <span class="metric-value">{{ report_count }}</span>
+            </article>
+            <article class="metric-card">
+                <span class="metric-label">Latest Price</span>
+                <span class="metric-value">{% if latest_report and latest_report.price is not None %}${{ latest_report.price|floatformat:2 }}{% else %}-{% endif %}</span>
+            </article>
+            <article class="metric-card">
+                <span class="metric-label">Latest Objective</span>
+                <span class="metric-value">{% if latest_report and latest_report.price_objective is not None %}${{ latest_report.price_objective|floatformat:2 }}{% else %}-{% endif %}</span>
+            </article>
+            <article class="metric-card">
+                <span class="metric-label">Objective Change</span>
+                <span class="metric-value {% if objective_change is not None and objective_change < 0 %}neg{% endif %}">
+                    {% if objective_change is not None %}
+                        {% if objective_change > 0 %}+{% endif %}${{ objective_change|floatformat:2 }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </span>
+            </article>
+        </div>
+    </section>
+
+    <section class="dashboard-section reveal delay-1">
+        <div class="section-head">
+            <h2>Price Objective Over Time</h2>
+            <span class="subtle">{{ chart_values|length }} data point{{ chart_values|length|pluralize }}</span>
+        </div>
+        {% if chart_values %}
+            <div class="chart-wrap">
+                <canvas id="objective-chart" class="objective-chart"></canvas>
+            </div>
+            {{ chart_labels|json_script:"objective-labels" }}
+            {{ chart_values|json_script:"objective-values" }}
+        {% else %}
+            <p class="empty-note">No price objective values are available yet for this stock.</p>
+        {% endif %}
+    </section>
+
+    <section class="dashboard-section reveal delay-2">
+        <div class="section-head">
+            <h2>Report Timeline</h2>
+            <div class="report-controls">
+                <button type="button" class="btn btn-ghost" data-report-prev>Newer</button>
+                <span class="subtle report-counter" data-report-counter>-</span>
+                <button type="button" class="btn btn-ghost" data-report-next>Older</button>
+            </div>
+        </div>
+
+        {% if reports %}
+            <div class="report-carousel" data-report-carousel>
+                {% for report in reports %}
+                    <article class="report-card" data-report-card {% if not forloop.first %}hidden{% endif %}>
+                        <div class="report-head">
+                            <h3>{{ report.as_of_timestamp|date:"M j, Y H:i" }}</h3>
+                            <p class="subtle">
+                                {% if report.rating %}{{ report.rating|cut:"_"|title }}{% else %}No rating{% endif %}
+                                {% if report.analyst_team %} | {{ report.analyst_team }}{% endif %}
+                            </p>
+                        </div>
+
+                        <div class="report-kpis">
+                            <div>
+                                <span>Price</span>
+                                <strong>{% if report.price is not None %}${{ report.price|floatformat:2 }}{% else %}-{% endif %}</strong>
+                            </div>
+                            <div>
+                                <span>Objective</span>
+                                <strong>{% if report.price_objective is not None %}${{ report.price_objective|floatformat:2 }}{% else %}-{% endif %}</strong>
+                            </div>
+                            <div>
+                                <span>Upside</span>
+                                <strong>{% if report.upside is not None %}{{ report.upside|floatformat:4 }}{% else %}-{% endif %}</strong>
+                            </div>
+                            <div>
+                                <span>Market Cap</span>
+                                <strong>{% if report.market_cap is not None %}${{ report.market_cap|floatformat:0 }}{% else %}-{% endif %}</strong>
+                            </div>
+                        </div>
+
+                        {% if report.blurb %}
+                            <p class="report-blurb">{{ report.blurb }}</p>
+                        {% endif %}
+
+                        {% if report.key_takeaways.all %}
+                            <h4>Key Takeaways</h4>
+                            <ul class="takeaway-list">
+                                {% for takeaway in report.key_takeaways.all %}
+                                    <li>{{ takeaway.text }}</li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+
+                        {% if report.eps_forecasts.all %}
+                            <h4>EPS Forecasts</h4>
+                            <div class="table-wrap">
+                                <table class="data-table eps-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Year</th>
+                                            <th>EPS</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for eps in report.eps_forecasts.all %}
+                                            <tr>
+                                                <td>{{ eps.year }}</td>
+                                                <td>{{ eps.eps|floatformat:4 }}</td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% endif %}
+
+                        {% if report.link %}
+                            <a class="minor-link" href="{{ report.link }}" target="_blank" rel="noopener">Open original report source</a>
+                        {% endif %}
+                    </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="empty-note">No reports found for this stock yet.</p>
+        {% endif %}
+    </section>
+
+    <script>
+    (() => {
+      const labelsScript = document.getElementById("objective-labels");
+      const valuesScript = document.getElementById("objective-values");
+      const canvas = document.getElementById("objective-chart");
+
+      if (labelsScript && valuesScript && canvas) {
+        const labels = JSON.parse(labelsScript.textContent);
+        const values = JSON.parse(valuesScript.textContent);
+        if (values.length > 0) {
+          const dpr = window.devicePixelRatio || 1;
+          const width = canvas.clientWidth || 940;
+          const height = 320;
+          canvas.width = width * dpr;
+          canvas.height = height * dpr;
+          canvas.style.height = `${height}px`;
+
+          const ctx = canvas.getContext("2d");
+          ctx.scale(dpr, dpr);
+
+          const padding = { top: 18, right: 18, bottom: 34, left: 48 };
+          const innerWidth = width - padding.left - padding.right;
+          const innerHeight = height - padding.top - padding.bottom;
+          const minValue = Math.min(...values);
+          const maxValue = Math.max(...values);
+          const spread = maxValue - minValue || 1;
+
+          const xFor = (index) => padding.left + (innerWidth * index) / Math.max(values.length - 1, 1);
+          const yFor = (value) => padding.top + ((maxValue - value) / spread) * innerHeight;
+
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, width, height);
+
+          ctx.strokeStyle = "rgba(21, 50, 35, 0.16)";
+          ctx.lineWidth = 1;
+          for (let i = 0; i <= 4; i += 1) {
+            const y = padding.top + (innerHeight * i) / 4;
+            ctx.beginPath();
+            ctx.moveTo(padding.left, y);
+            ctx.lineTo(width - padding.right, y);
+            ctx.stroke();
+          }
+
+          ctx.strokeStyle = "#0f6e58";
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          values.forEach((value, index) => {
+            const x = xFor(index);
+            const y = yFor(value);
+            if (index === 0) {
+              ctx.moveTo(x, y);
+            } else {
+              ctx.lineTo(x, y);
+            }
+          });
+          ctx.stroke();
+
+          ctx.fillStyle = "#f08b24";
+          values.forEach((value, index) => {
+            const x = xFor(index);
+            const y = yFor(value);
+            ctx.beginPath();
+            ctx.arc(x, y, 3.8, 0, Math.PI * 2);
+            ctx.fill();
+          });
+
+          ctx.fillStyle = "#345649";
+          ctx.font = '12px Manrope, sans-serif';
+          ctx.textAlign = "right";
+          ctx.fillText(`$${maxValue.toFixed(2)}`, padding.left - 8, padding.top + 4);
+          ctx.fillText(`$${minValue.toFixed(2)}`, padding.left - 8, padding.top + innerHeight);
+
+          ctx.textAlign = "left";
+          ctx.fillText(labels[0], padding.left, height - 10);
+          ctx.textAlign = "right";
+          ctx.fillText(labels[labels.length - 1], width - padding.right, height - 10);
+        }
+      }
+
+      const cards = Array.from(document.querySelectorAll("[data-report-card]"));
+      const counter = document.querySelector("[data-report-counter]");
+      const prevButton = document.querySelector("[data-report-prev]");
+      const nextButton = document.querySelector("[data-report-next]");
+      if (!cards.length || !counter || !prevButton || !nextButton) {
+        return;
+      }
+
+      let index = 0;
+      const render = () => {
+        cards.forEach((card, i) => {
+          card.hidden = i !== index;
+        });
+        counter.textContent = `${index + 1} / ${cards.length}`;
+        prevButton.disabled = index === 0;
+        nextButton.disabled = index === cards.length - 1;
+      };
+
+      prevButton.addEventListener("click", () => {
+        if (index > 0) {
+          index -= 1;
+          render();
+        }
+      });
+
+      nextButton.addEventListener("click", () => {
+        if (index < cards.length - 1) {
+          index += 1;
+          render();
+        }
+      });
+
+      render();
+    })();
+    </script>
+{% endblock %}

@@ -2,7 +2,7 @@ from datetime import timedelta
 from decimal import Decimal
 
 from django.db.models import Count, DecimalField, ExpressionWrapper, F, OuterRef, Subquery
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 
 from investor.models import HoldingSnapshot, Watch
@@ -178,6 +178,7 @@ def _build_window_summary(window_label, start_at):
         ),
         "most_reported": (
             {
+                "stock_id": most_reported["stock_id"],
                 "ticker": most_reported["stock__ticker"],
                 "region": most_reported["stock__region"],
                 "company_name": most_reported["stock__company_name"],
@@ -232,3 +233,39 @@ def home(request):
         )
 
     return render(request, "stocks/home.html", context)
+
+
+def stock_detail(request, stock_id):
+    stock = get_object_or_404(Stock, pk=stock_id)
+    reports = list(
+        DailyReport.objects.filter(stock=stock)
+        .prefetch_related("key_takeaways", "eps_forecasts")
+        .order_by("-as_of_timestamp")
+    )
+
+    chart_reports = [report for report in reversed(reports) if report.price_objective is not None]
+    chart_labels = [report.as_of_timestamp.strftime("%Y-%m-%d") for report in chart_reports]
+    chart_values = [float(report.price_objective) for report in chart_reports]
+
+    latest_report = reports[0] if reports else None
+    previous_report = reports[1] if len(reports) > 1 else None
+    objective_change = None
+    if (
+        latest_report
+        and previous_report
+        and latest_report.price_objective is not None
+        and previous_report.price_objective is not None
+    ):
+        objective_change = latest_report.price_objective - previous_report.price_objective
+
+    context = {
+        "stock": stock,
+        "reports": reports,
+        "report_count": len(reports),
+        "latest_report": latest_report,
+        "latest_upside_pct": _to_percent(latest_report.upside) if latest_report else None,
+        "objective_change": objective_change,
+        "chart_labels": chart_labels,
+        "chart_values": chart_values,
+    }
+    return render(request, "stocks/stock_detail.html", context)
