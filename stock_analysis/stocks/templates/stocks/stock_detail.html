@@ -129,7 +129,7 @@
                                     <tbody>
                                         {% for eps in report.eps_forecasts.all %}
                                             <tr>
-                                                <td>{{ eps.year|intcomma }}</td>
+                                                <td>{{ eps.year }}</td>
                                                 <td>{{ eps.eps|floatformat:4|intcomma }}</td>
                                             </tr>
                                         {% endfor %}
