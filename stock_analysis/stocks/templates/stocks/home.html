@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Stock Analysis</title>
+</head>
+<body>
+    <h1>Stock Analysis</h1>
+
+    {% if user.is_authenticated %}
+        <p>Signed in as <strong>{{ user.username }}</strong>.</p>
+        <p><a href="{% url 'admin:index' %}">Admin</a></p>
+        <form method="post" action="{% url 'logout' %}">
+            {% csrf_token %}
+            <button type="submit">Log out</button>
+        </form>
+    {% else %}
+        <p><a href="{% url 'login' %}">Log in</a></p>
+        <p><a href="{% url 'signup' %}">Create account</a></p>
+    {% endif %}
+</body>
+</html>
