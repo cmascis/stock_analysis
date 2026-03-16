@@ -229,7 +229,7 @@ h2 {
 .metrics-grid {
     display: grid;
     gap: 14px;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
     margin-top: 24px;
 }
 
@@ -252,8 +252,9 @@ h2 {
 .metric-value {
     display: block;
     font-family: "Fraunces", serif;
-    font-size: 1.9rem;
+    font-size: clamp(1.5rem, 3.5vw, 1.9rem);
     margin-top: 10px;
+    word-break: break-word;
 }
 
 .panel-grid {
@@ -353,6 +354,158 @@ h2 {
 .subtle {
     color: var(--muted);
     font-size: 0.94rem;
+}
+
+.neg {
+    color: #9b2614;
+}
+
+.dashboard-section {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-soft);
+    margin-top: 16px;
+    padding: clamp(18px, 3vw, 28px);
+}
+
+.section-head {
+    align-items: baseline;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 14px;
+    justify-content: space-between;
+    margin-bottom: 14px;
+}
+
+.section-head h2 {
+    margin: 0;
+}
+
+.table-wrap {
+    overflow-x: auto;
+}
+
+.data-table {
+    border-collapse: collapse;
+    min-width: 920px;
+    width: 100%;
+}
+
+.data-table th,
+.data-table td {
+    border-bottom: 1px solid rgba(21, 50, 35, 0.11);
+    font-size: 0.92rem;
+    padding: 11px 10px;
+    text-align: left;
+    vertical-align: top;
+}
+
+.data-table th {
+    color: #325445;
+    font-size: 0.8rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.data-table tr:last-child td {
+    border-bottom: 0;
+}
+
+.watch-grid {
+    display: grid;
+    gap: 14px;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+}
+
+.watch-card {
+    background: var(--surface-strong);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 14px;
+}
+
+.watch-card h3 {
+    font-size: 1.2rem;
+    margin: 0 0 3px;
+}
+
+.watch-card p {
+    margin: 0 0 10px;
+}
+
+.watch-card dl {
+    display: grid;
+    gap: 4px 10px;
+    grid-template-columns: auto 1fr;
+    margin: 0;
+}
+
+.watch-card dt {
+    color: #3b5d4f;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.watch-card dd {
+    margin: 0;
+    text-align: right;
+}
+
+.window-grid {
+    display: grid;
+    gap: 14px;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+
+.window-card {
+    background: var(--surface-strong);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 16px;
+}
+
+.window-card h3 {
+    margin: 0 0 2px;
+}
+
+.window-card > .subtle {
+    display: block;
+    margin-bottom: 10px;
+}
+
+.window-metric {
+    border-top: 1px dashed rgba(26, 64, 47, 0.18);
+    margin-top: 10px;
+    padding-top: 10px;
+}
+
+.window-metric span {
+    color: #3f5f52;
+    display: block;
+    font-size: 0.77rem;
+    font-weight: 800;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+}
+
+.window-metric strong {
+    display: block;
+    font-size: 1rem;
+    margin-top: 5px;
+}
+
+.window-metric small {
+    color: var(--muted);
+    display: block;
+    font-size: 0.83rem;
+    margin-top: 3px;
+}
+
+.empty-note {
+    color: var(--muted);
+    margin: 2px 0 0;
 }
 
 .reveal {

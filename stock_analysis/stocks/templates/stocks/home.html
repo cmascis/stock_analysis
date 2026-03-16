@@ -8,45 +8,30 @@
         <h1>Stock Analysis</h1>
 
         {% if user.is_authenticated %}
-            <p class="lead">Welcome back, {{ user.username }}. Your workspace is ready for watchlists, holdings, and report-driven decisions.</p>
+            <p class="lead">Welcome back, {{ user.first_name|default:user.username }}. Here is your latest holdings context, watchlist pulse, and top report movers by timeframe.</p>
 
             <div class="metrics-grid">
                 <article class="metric-card reveal delay-1">
-                    <span class="metric-label">Profile</span>
-                    <span class="metric-value">Active</span>
+                    <span class="metric-label">Holdings</span>
+                    <span class="metric-value">{{ holdings_count }}</span>
                 </article>
                 <article class="metric-card reveal delay-1">
-                    <span class="metric-label">Connection</span>
-                    <span class="metric-value">Postgres</span>
+                    <span class="metric-label">Watchlist</span>
+                    <span class="metric-value">{{ watchlist_count }}</span>
                 </article>
                 <article class="metric-card reveal delay-2">
-                    <span class="metric-label">Status</span>
-                    <span class="metric-value">Ready</span>
+                    <span class="metric-label">Position Value</span>
+                    <span class="metric-value">${{ total_position_value|floatformat:2 }}</span>
                 </article>
-            </div>
-
-            <div class="panel-grid">
-                <article class="panel reveal delay-1">
-                    <h2>Manage Data</h2>
-                    <p>Use Django admin to manage stocks, reports, watches, and holdings while the product UX grows.</p>
-                    <a class="btn btn-ghost" href="{% url 'admin:index' %}">Open admin</a>
-                </article>
-                <article class="panel reveal delay-2">
-                    <h2>Stay Session-Safe</h2>
-                    <p>Use explicit logout from navigation when switching investor accounts on shared machines.</p>
-                    <form method="post" action="{% url 'logout' %}">
-                        {% csrf_token %}
-                        <button class="btn btn-soft" type="submit">Log out</button>
-                    </form>
+                <article class="metric-card reveal delay-2">
+                    <span class="metric-label">Target Delta</span>
+                    <span class="metric-value {% if total_target_change < 0 %}neg{% endif %}">
+                        {% if total_target_change > 0 %}+{% endif %}${{ total_target_change|floatformat:2 }}
+                    </span>
                 </article>
             </div>
         {% else %}
             <p class="lead">Track stocks with a clean, focused workspace. Sign in to continue or create your investor account in under a minute.</p>
-
-            <div class="cta-row">
-                <a class="btn btn-primary" href="{% url 'signup' %}">Create account</a>
-                <a class="btn btn-ghost" href="{% url 'login' %}">Log in</a>
-            </div>
 
             <div class="panel-grid">
                 <article class="panel reveal delay-1">
@@ -60,4 +45,145 @@
             </div>
         {% endif %}
     </section>
+
+    {% if user.is_authenticated %}
+        <section class="dashboard-section reveal delay-1">
+            <div class="section-head">
+                <h2>Portfolio Snapshot vs Latest Reports</h2>
+                <span class="subtle">Most recent holding per stock compared to latest analyst report.</span>
+            </div>
+            {% if holdings_rows %}
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Stock</th>
+                                <th>Quantity</th>
+                                <th>Avg Cost</th>
+                                <th>Latest Price</th>
+                                <th>Price Objective</th>
+                                <th>Upside</th>
+                                <th>Rating</th>
+                                <th>Position Value</th>
+                                <th>Target Delta</th>
+                                <th>Report As Of</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in holdings_rows %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ row.stock.ticker }} {{ row.stock.region }}</strong>
+                                        <div class="subtle">{{ row.stock.company_name }}</div>
+                                    </td>
+                                    <td>{{ row.quantity|floatformat:4 }}</td>
+                                    <td>{% if row.avg_cost is not None %}${{ row.avg_cost|floatformat:2 }}{% else %}-{% endif %}</td>
+                                    <td>{% if row.price is not None %}${{ row.price|floatformat:2 }}{% else %}-{% endif %}</td>
+                                    <td>{% if row.price_objective is not None %}${{ row.price_objective|floatformat:2 }}{% else %}-{% endif %}</td>
+                                    <td>{% if row.upside_pct is not None %}{{ row.upside_pct|floatformat:2 }}%{% else %}-{% endif %}</td>
+                                    <td>{% if row.rating %}{{ row.rating|cut:"_"|title }}{% else %}-{% endif %}</td>
+                                    <td>{% if row.position_value is not None %}${{ row.position_value|floatformat:2 }}{% else %}-{% endif %}</td>
+                                    <td>
+                                        {% if row.target_change_value is not None %}
+                                            <span class="{% if row.target_change_value < 0 %}neg{% endif %}">
+                                                {% if row.target_change_value > 0 %}+{% endif %}${{ row.target_change_value|floatformat:2 }}
+                                            </span>
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td>{% if row.report_at %}{{ row.report_at|date:"M j, Y H:i" }}{% else %}-{% endif %}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="empty-note">No holdings yet. Add a holding snapshot to populate this section.</p>
+            {% endif %}
+        </section>
+
+        <section class="dashboard-section reveal delay-1">
+            <div class="section-head">
+                <h2>Most Recent Watchlist Updates</h2>
+                <span class="subtle">Fresh report context for the stocks you are watching.</span>
+            </div>
+            {% if watchlist_rows %}
+                <div class="watch-grid">
+                    {% for row in watchlist_rows|slice:":8" %}
+                        <article class="watch-card">
+                            <h3>{{ row.stock.ticker }} {{ row.stock.region }}</h3>
+                            <p class="subtle">{{ row.stock.company_name }}</p>
+                            <dl>
+                                <dt>Latest price</dt>
+                                <dd>{% if row.price is not None %}${{ row.price|floatformat:2 }}{% else %}-{% endif %}</dd>
+                                <dt>Price objective</dt>
+                                <dd>{% if row.price_objective is not None %}${{ row.price_objective|floatformat:2 }}{% else %}-{% endif %}</dd>
+                                <dt>Upside</dt>
+                                <dd>{% if row.upside_pct is not None %}{{ row.upside_pct|floatformat:2 }}%{% else %}-{% endif %}</dd>
+                                <dt>Rating</dt>
+                                <dd>{% if row.rating %}{{ row.rating|cut:"_"|title }}{% else %}-{% endif %}</dd>
+                                <dt>As of</dt>
+                                <dd>{% if row.report_at %}{{ row.report_at|date:"M j, Y H:i" }}{% else %}-{% endif %}</dd>
+                            </dl>
+                        </article>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty-note">No watchlist entries yet. Add stocks to your watchlist to see recent report signals.</p>
+            {% endif %}
+        </section>
+
+        <section class="dashboard-section reveal delay-2">
+            <div class="section-head">
+                <h2>Report Leaders by Time Window</h2>
+                <span class="subtle">Best upside, most reported stock, and biggest objective upgrade.</span>
+            </div>
+            <div class="window-grid">
+                {% for window in report_windows %}
+                    <article class="window-card">
+                        <h3>{{ window.label }}</h3>
+                        <p class="subtle">{{ window.report_count }} report{{ window.report_count|pluralize }}</p>
+
+                        <div class="window-metric">
+                            <span>Best upside</span>
+                            {% if window.best_upside %}
+                                <strong>{{ window.best_upside.stock.ticker }} {{ window.best_upside.stock.region }} ({{ window.best_upside.upside_pct|floatformat:2 }}%)</strong>
+                                <small>{{ window.best_upside.company_name }}</small>
+                            {% else %}
+                                <strong>-</strong>
+                            {% endif %}
+                        </div>
+
+                        <div class="window-metric">
+                            <span>Most reported</span>
+                            {% if window.most_reported %}
+                                <strong>{{ window.most_reported.ticker }} {{ window.most_reported.region }} ({{ window.most_reported.report_count }} reports)</strong>
+                                <small>{{ window.most_reported.company_name }}</small>
+                            {% else %}
+                                <strong>-</strong>
+                            {% endif %}
+                        </div>
+
+                        <div class="window-metric">
+                            <span>Largest objective upgrade</span>
+                            {% if window.largest_upgrade %}
+                                <strong>{{ window.largest_upgrade.stock.ticker }} {{ window.largest_upgrade.stock.region }} (+${{ window.largest_upgrade.upgrade_amount|floatformat:2 }})</strong>
+                                <small>{{ window.largest_upgrade.company_name }}: ${{ window.largest_upgrade.from_objective|floatformat:2 }} -> ${{ window.largest_upgrade.to_objective|floatformat:2 }}</small>
+                            {% else %}
+                                <strong>-</strong>
+                            {% endif %}
+                        </div>
+                    </article>
+                {% endfor %}
+            </div>
+        </section>
+    {% else %}
+        <section class="hero reveal delay-1">
+            <div class="cta-row">
+                <a class="btn btn-primary" href="{% url 'signup' %}">Create account</a>
+                <a class="btn btn-ghost" href="{% url 'login' %}">Log in</a>
+            </div>
+        </section>
+    {% endif %}
 {% endblock %}
