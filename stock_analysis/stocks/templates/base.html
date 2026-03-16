@@ -1,0 +1,46 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Stock Analysis{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;700&family=Manrope:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'stocks/theme.css' %}">
+</head>
+<body>
+    <div class="backdrop" aria-hidden="true">
+        <span class="orb orb-a"></span>
+        <span class="orb orb-b"></span>
+        <span class="grid-lines"></span>
+    </div>
+
+    <div class="page-shell">
+        <header class="site-header reveal">
+            <a class="brand" href="{% url 'home' %}">
+                <span class="brand-mark">SA</span>
+                <span>Stock Analysis</span>
+            </a>
+
+            <nav class="site-nav">
+                {% if user.is_authenticated %}
+                    <a class="btn btn-ghost" href="{% url 'admin:index' %}">Admin</a>
+                    <form method="post" action="{% url 'logout' %}">
+                        {% csrf_token %}
+                        <button class="btn btn-soft" type="submit">Log out</button>
+                    </form>
+                {% else %}
+                    <a class="btn btn-ghost" href="{% url 'login' %}">Log in</a>
+                    <a class="btn btn-primary" href="{% url 'signup' %}">Sign up</a>
+                {% endif %}
+            </nav>
+        </header>
+
+        <main>
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+</body>
+</html>

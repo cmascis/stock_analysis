@@ -1,19 +1,30 @@
-<!doctype html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Sign Up</title>
-</head>
-<body>
-    <h1>Create your account</h1>
-    <form method="post">
-        {% csrf_token %}
-        {{ form.as_p }}
-        <button type="submit">Sign up</button>
-    </form>
+{% extends "base.html" %}
 
-    <p>Already have an account? <a href="{% url 'login' %}">Log in</a></p>
-    <p><a href="{% url 'home' %}">Back to home</a></p>
-</body>
-</html>
+{% block title %}Stock Analysis | Sign Up{% endblock %}
+
+{% block content %}
+    <section class="auth-layout">
+        <article class="auth-card reveal">
+            <p class="eyebrow">New Account</p>
+            <h1>Create your account</h1>
+            <p class="subtle">Set up your investor profile to start tracking stocks.</p>
+
+            <form method="post" class="auth-form">
+                {% csrf_token %}
+                {{ form.as_p }}
+                <button class="btn btn-primary" type="submit">Sign up</button>
+            </form>
+
+            <a class="minor-link" href="{% url 'login' %}">Already have an account? Log in</a>
+        </article>
+
+        <aside class="auth-side reveal delay-1">
+            <h2>What you get next</h2>
+            <div class="help-list">
+                <div><strong>Watchlist foundation:</strong> Start organizing names you follow most.</div>
+                <div><strong>Holding history:</strong> Capture snapshots as positions change over time.</div>
+                <div><strong>Report context:</strong> Tie daily analyst reports directly to tracked stocks.</div>
+            </div>
+        </aside>
+    </section>
+{% endblock %}

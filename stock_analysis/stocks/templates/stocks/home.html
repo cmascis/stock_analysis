@@ -1,23 +1,63 @@
-<!doctype html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Stock Analysis</title>
-</head>
-<body>
-    <h1>Stock Analysis</h1>
+{% extends "base.html" %}
 
-    {% if user.is_authenticated %}
-        <p>Signed in as <strong>{{ user.username }}</strong>.</p>
-        <p><a href="{% url 'admin:index' %}">Admin</a></p>
-        <form method="post" action="{% url 'logout' %}">
-            {% csrf_token %}
-            <button type="submit">Log out</button>
-        </form>
-    {% else %}
-        <p><a href="{% url 'login' %}">Log in</a></p>
-        <p><a href="{% url 'signup' %}">Create account</a></p>
-    {% endif %}
-</body>
-</html>
+{% block title %}Stock Analysis | Home{% endblock %}
+
+{% block content %}
+    <section class="hero reveal">
+        <p class="eyebrow">Investor Dashboard</p>
+        <h1>Stock Analysis</h1>
+
+        {% if user.is_authenticated %}
+            <p class="lead">Welcome back, {{ user.username }}. Your workspace is ready for watchlists, holdings, and report-driven decisions.</p>
+
+            <div class="metrics-grid">
+                <article class="metric-card reveal delay-1">
+                    <span class="metric-label">Profile</span>
+                    <span class="metric-value">Active</span>
+                </article>
+                <article class="metric-card reveal delay-1">
+                    <span class="metric-label">Connection</span>
+                    <span class="metric-value">Postgres</span>
+                </article>
+                <article class="metric-card reveal delay-2">
+                    <span class="metric-label">Status</span>
+                    <span class="metric-value">Ready</span>
+                </article>
+            </div>
+
+            <div class="panel-grid">
+                <article class="panel reveal delay-1">
+                    <h2>Manage Data</h2>
+                    <p>Use Django admin to manage stocks, reports, watches, and holdings while the product UX grows.</p>
+                    <a class="btn btn-ghost" href="{% url 'admin:index' %}">Open admin</a>
+                </article>
+                <article class="panel reveal delay-2">
+                    <h2>Stay Session-Safe</h2>
+                    <p>Use explicit logout from navigation when switching investor accounts on shared machines.</p>
+                    <form method="post" action="{% url 'logout' %}">
+                        {% csrf_token %}
+                        <button class="btn btn-soft" type="submit">Log out</button>
+                    </form>
+                </article>
+            </div>
+        {% else %}
+            <p class="lead">Track stocks with a clean, focused workspace. Sign in to continue or create your investor account in under a minute.</p>
+
+            <div class="cta-row">
+                <a class="btn btn-primary" href="{% url 'signup' %}">Create account</a>
+                <a class="btn btn-ghost" href="{% url 'login' %}">Log in</a>
+            </div>
+
+            <div class="panel-grid">
+                <article class="panel reveal delay-1">
+                    <h2>Watchlist and Holdings</h2>
+                    <p>Organize your tracked names and position snapshots in one place built for investors.</p>
+                </article>
+                <article class="panel reveal delay-2">
+                    <h2>Analyst Report Pipeline</h2>
+                    <p>Leverage imported report data, EPS forecasts, and key takeaways as your app evolves.</p>
+                </article>
+            </div>
+        {% endif %}
+    </section>
+{% endblock %}

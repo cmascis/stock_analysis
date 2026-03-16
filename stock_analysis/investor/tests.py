@@ -9,6 +9,9 @@ class AuthWorkflowTests(TestCase):
             reverse("signup"),
             {
                 "username": "newuser",
+                "email": "newuser@example.com",
+                "first_name": "New",
+                "last_name": "User",
                 "password1": "S3cur3Pass123!!",
                 "password2": "S3cur3Pass123!!",
             },
@@ -16,7 +19,27 @@ class AuthWorkflowTests(TestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertRedirects(response, reverse("home"))
-        self.assertTrue(get_user_model().objects.filter(username="newuser").exists())
+        user = get_user_model().objects.get(username="newuser")
+        self.assertEqual(user.email, "newuser@example.com")
+        self.assertEqual(user.first_name, "New")
+        self.assertEqual(user.last_name, "User")
+
+    def test_signup_requires_email_first_name_last_name(self):
+        response = self.client.post(
+            reverse("signup"),
+            {
+                "username": "missingfields",
+                "email": "",
+                "first_name": "",
+                "last_name": "",
+                "password1": "S3cur3Pass123!!",
+                "password2": "S3cur3Pass123!!",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "This field is required.", count=3)
+        self.assertFalse(get_user_model().objects.filter(username="missingfields").exists())
 
     def test_login_and_logout_flow(self):
         user_model = get_user_model()
