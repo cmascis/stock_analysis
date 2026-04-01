@@ -45,6 +45,50 @@ Note:
 - Running without app labels can return `Found 0 test(s)` in this project layout.
 - Tests require a running Postgres instance.
 
+## Guardrails and CI
+
+### Install local hooks and tooling
+
+```bash
+./scripts/bootstrap_dev_guardrails.sh
+```
+
+This installs `prek` git hooks for both `pre-commit` and `pre-push`.
+
+### Run the same checks as CI
+
+```bash
+./scripts/run_local_ci.sh
+```
+
+This script performs:
+
+1. `prek` pre-commit checks (including `ruff` and file hygiene)
+2. migration drift check
+3. migrations apply
+4. Django tests (`stocks`, `investor`)
+
+### Branch and PR contract
+
+- Branch naming:
+  - `feature/<slug>`
+  - `fix/<slug>`
+  - `chore/<slug>`
+  - `docs/<slug>`
+- `main` is PR-only and protected.
+- Merge policy is squash-only.
+- Required GitHub checks:
+  - `CI / lint`
+  - `CI / migrations`
+  - `CI / tests`
+
+### Apply repository guardrails programmatically
+
+```bash
+./scripts/apply_github_guardrails.sh --dry-run
+./scripts/apply_github_guardrails.sh --apply
+```
+
 ## Data Flows
 
 ### Load fixture snapshot
