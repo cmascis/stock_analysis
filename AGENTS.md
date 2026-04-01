@@ -21,6 +21,12 @@ uv run python stock_analysis/manage.py runserver
 uv run python stock_analysis/manage.py test stocks investor
 ```
 
+## Tooling Policy
+
+- This is a strict `uv`-managed repository.
+- Never use `pip`, `pip3`, or `python -m pip` in local commands, scripts, docs, or CI workflows.
+- Use `uv` equivalents only (`uv sync`, `uv add`, `uv run`, `uv tool`).
+
 ## Important Project Invariants
 
 - `Stock` identity is `(ticker, region)` and both are normalized uppercase.
