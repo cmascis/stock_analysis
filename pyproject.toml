@@ -11,3 +11,23 @@ dependencies = [
     "djangorestframework-stubs>=3.16.8",
     "psycopg[binary]>=3.2.0",
 ]
+
+[dependency-groups]
+dev = [
+    "prek>=0.3.2",
+    "ruff>=0.14.0",
+]
+
+[tool.ruff]
+target-version = "py314"
+extend-exclude = [
+    "stock_analysis/*/migrations/*.py",
+]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"

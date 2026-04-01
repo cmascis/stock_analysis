@@ -125,7 +125,7 @@ class ReportKeyTakeaway(models.Model):
 
     def __str__(self) -> str:
         return f"{self.report} takeaway #{self.order}: {self.text}"
-    
+
 class EPSForecast(models.Model):
     report = models.ForeignKey(DailyReport, on_delete=models.CASCADE, related_name="eps_forecasts")
     year = models.PositiveSmallIntegerField()

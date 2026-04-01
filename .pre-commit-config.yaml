@@ -1,0 +1,45 @@
+minimum_prek_version: "0.3.2"
+default_install_hook_types:
+  - pre-commit
+  - pre-push
+fail_fast: false
+
+repos:
+  - repo: builtin
+    hooks:
+      - id: check-yaml
+      - id: check-toml
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-merge-conflict
+
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: uv run ruff check --force-exclude
+        language: system
+        pass_filenames: true
+        types_or: [python, pyi]
+        stages: [pre-commit]
+
+      - id: django-migration-drift
+        name: django migration drift check
+        entry: uv run python stock_analysis/manage.py makemigrations --check --dry-run
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+
+      - id: django-migrate
+        name: django migrate
+        entry: uv run python stock_analysis/manage.py migrate --noinput
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+
+      - id: django-tests
+        name: django tests
+        entry: uv run python stock_analysis/manage.py test stocks investor
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
