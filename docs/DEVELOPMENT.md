@@ -6,7 +6,7 @@
 - `uv`
 - Python compatible with `pyproject.toml` (`>=3.14`)
 
-This is a strict `uv` project. Do not use `pip` or `python -m pip`.
+This is a strict `uv` project. Do not use `pip` or `python -m pip`, and run Django commands via `uv run stock_analysis/manage.py ...`.
 
 ## First-Time Setup
 
@@ -25,13 +25,13 @@ This is a strict `uv` project. Do not use `pip` or `python -m pip`.
 3. Apply migrations:
 
    ```bash
-   uv run python stock_analysis/manage.py migrate
+   uv run stock_analysis/manage.py migrate
    ```
 
 4. Start app:
 
    ```bash
-   uv run python stock_analysis/manage.py runserver
+   uv run stock_analysis/manage.py runserver
    ```
 
 ## Running Tests
@@ -39,7 +39,7 @@ This is a strict `uv` project. Do not use `pip` or `python -m pip`.
 Preferred command:
 
 ```bash
-uv run python stock_analysis/manage.py test stocks investor
+uv run stock_analysis/manage.py test stocks investor
 ```
 
 Note:
@@ -96,13 +96,13 @@ This script performs:
 ### Load fixture snapshot
 
 ```bash
-uv run python stock_analysis/manage.py loaddata mysite_data.json
+uv run stock_analysis/manage.py loaddata mysite_data.json
 ```
 
 ### Export fixture snapshot
 
 ```bash
-uv run python stock_analysis/manage.py dumpdata auth.user investor stocks --natural-foreign --natural-primary --exclude contenttypes --exclude auth.permission --exclude admin.logentry --exclude sessions --indent=2 --output=mysite_data.json
+uv run stock_analysis/manage.py dumpdata auth.user investor stocks --natural-foreign --natural-primary --exclude contenttypes --exclude auth.permission --exclude admin.logentry --exclude sessions --indent=2 --output=mysite_data.json
 ```
 
 ### Import JSON reports
@@ -114,13 +114,13 @@ Put source files in:
 Then run:
 
 ```bash
-uv run python stock_analysis/manage.py import_reports
+uv run stock_analysis/manage.py import_reports
 ```
 
 Dry run:
 
 ```bash
-uv run python stock_analysis/manage.py import_reports --dry-run
+uv run stock_analysis/manage.py import_reports --dry-run
 ```
 
 ## Environment Variables
@@ -142,13 +142,13 @@ Configured in `stock_analysis/stock_analysis/settings.py`.
 2. Create migration:
 
    ```bash
-   uv run python stock_analysis/manage.py makemigrations
+   uv run stock_analysis/manage.py makemigrations
    ```
 
 3. Apply migration:
 
    ```bash
-   uv run python stock_analysis/manage.py migrate
+   uv run stock_analysis/manage.py migrate
    ```
 
 4. Update importer (`import_reports.py`) if field comes from source JSON.
