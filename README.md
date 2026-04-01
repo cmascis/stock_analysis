@@ -101,9 +101,9 @@ This repository uses `prek` + `ruff` locally and in GitHub Actions.
 
 Required checks on `main`:
 
-- `CI / lint`
-- `CI / migrations`
-- `CI / tests`
+- `lint`
+- `migrations`
+- `tests`
 
 See `CONTRIBUTING.md` for branch naming and PR workflow.
 

@@ -78,9 +78,9 @@ This script performs:
 - `main` is PR-only and protected.
 - Merge policy is squash-only.
 - Required GitHub checks:
-  - `CI / lint`
-  - `CI / migrations`
-  - `CI / tests`
+  - `lint`
+  - `migrations`
+  - `tests`
 
 ### Apply repository guardrails programmatically
 

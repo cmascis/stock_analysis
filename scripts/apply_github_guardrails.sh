@@ -88,9 +88,9 @@ cat > "${BRANCH_PROTECTION_JSON}" <<'EOF'
   "required_status_checks": {
     "strict": true,
     "contexts": [
-      "CI / lint",
-      "CI / migrations",
-      "CI / tests"
+      "lint",
+      "migrations",
+      "tests"
     ]
   },
   "enforce_admins": true,

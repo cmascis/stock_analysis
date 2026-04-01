@@ -37,9 +37,9 @@
 3. Run local checks (`prek`, migration drift, tests).
 4. Open a PR against `main` using the PR template checklist.
 5. Wait for required checks:
-   - `CI / lint`
-   - `CI / migrations`
-   - `CI / tests`
+   - `lint`
+   - `migrations`
+   - `tests`
 6. Merge using **Squash and merge** only.
 
 ## GitHub Repository Rules
