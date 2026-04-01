@@ -15,6 +15,13 @@ repos:
 
   - repo: local
     hooks:
+      - id: no-pip-usage
+        name: forbid pip usage (uv-only project)
+        entry: ./scripts/check_no_pip_usage.sh
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]
+
       - id: ruff-check
         name: ruff check
         entry: uv run ruff check --force-exclude

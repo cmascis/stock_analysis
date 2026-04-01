@@ -6,6 +6,8 @@
 - `uv`
 - Python compatible with `pyproject.toml` (`>=3.14`)
 
+This is a strict `uv` project. Do not use `pip` or `python -m pip`.
+
 ## First-Time Setup
 
 1. Start DB:

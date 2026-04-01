@@ -9,6 +9,8 @@ Server-rendered Django application for tracking stocks, analyst reports, investo
 - PostgreSQL `17` (local Docker service supported)
 - Server-rendered templates + small vanilla JS enhancements
 
+Dependency and tooling management is `uv`-only in this repository.
+
 ## Project Layout
 
 - `stock_analysis/manage.py`: Django management entrypoint

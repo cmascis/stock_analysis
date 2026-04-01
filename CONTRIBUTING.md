@@ -12,6 +12,8 @@
 
 ## Local Guardrails
 
+This repository is **uv-only**. Use `uv` for dependency and tool management.
+
 1. Install dependencies and hooks:
 
    ```bash
