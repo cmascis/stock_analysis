@@ -105,6 +105,7 @@ Required checks on pull requests to `main`:
 - `branch-policy`
 
 See `docs/branching-strategy.md` and `docs/tooling.md` for branch naming and day-to-day workflow.
+Use `docs/branching-strategy.md` section `Exact workflow for a new feature` as the canonical start-to-merge checklist.
 
 ## Codex-Focused Documentation
 

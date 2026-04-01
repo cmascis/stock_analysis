@@ -1,6 +1,7 @@
 # Tooling and Commands
 
 Canonical reference for environment setup, command invocation, and local validation tooling.
+For the full branch/PR lifecycle, use `docs/branching-strategy.md` section `Exact workflow for a new feature`.
 
 ## Tooling policy
 
