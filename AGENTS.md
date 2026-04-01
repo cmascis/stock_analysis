@@ -16,9 +16,9 @@ Rule priority: if any instruction is ambiguous, default to the stricter interpre
 ```bash
 docker compose up -d db
 uv sync
-uv run python stock_analysis/manage.py migrate
-uv run python stock_analysis/manage.py runserver
-uv run python stock_analysis/manage.py test stocks investor
+uv run stock_analysis/manage.py migrate
+uv run stock_analysis/manage.py runserver
+uv run stock_analysis/manage.py test stocks investor
 ```
 
 ## Tooling Policy
@@ -26,6 +26,7 @@ uv run python stock_analysis/manage.py test stocks investor
 - This is a strict `uv`-managed repository.
 - Never use `pip`, `pip3`, or `python -m pip` in local commands, scripts, docs, or CI workflows.
 - Use `uv` equivalents only (`uv sync`, `uv add`, `uv run`, `uv tool`).
+- For Django commands, invoke manage.py via `uv run stock_analysis/manage.py ...` instead of direct `python ...`.
 
 ## Important Project Invariants
 
