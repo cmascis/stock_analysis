@@ -92,10 +92,13 @@ When changing auth behavior:
 ```bash
 docker compose up -d db
 uv sync
+uv tool run prek install --hook-type pre-commit --hook-type pre-push --overwrite
 uv run python stock_analysis/manage.py migrate
 uv run python stock_analysis/manage.py runserver
 uv run python stock_analysis/manage.py test stocks investor
 uv run python stock_analysis/manage.py import_reports --dry-run
+uv tool run prek run --all-files
+uv run python scripts/uv_ci_local_validation.py
 ```
 
 ## High-Value Files to Read First

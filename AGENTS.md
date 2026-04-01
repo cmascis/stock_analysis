@@ -9,16 +9,20 @@ Rule priority: if any instruction is ambiguous, default to the stricter interpre
 1. `docs/CODEX_GUIDE.md` (fastest orientation)
 2. `docs/ARCHITECTURE.md`
 3. `docs/DEVELOPMENT.md`
-4. `docs/HISTORY.md`
+4. `docs/branching-strategy.md`
+5. `docs/tooling.md`
+6. `docs/HISTORY.md`
 
 ## Core Commands
 
 ```bash
 docker compose up -d db
 uv sync
+uv tool run prek install --hook-type pre-commit --hook-type pre-push --overwrite
 uv run python stock_analysis/manage.py migrate
 uv run python stock_analysis/manage.py runserver
 uv run python stock_analysis/manage.py test stocks investor
+uv run python scripts/uv_ci_local_validation.py
 ```
 
 ## Important Project Invariants

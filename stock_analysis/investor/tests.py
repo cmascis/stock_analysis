@@ -39,7 +39,9 @@ class AuthWorkflowTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "This field is required.", count=3)
-        self.assertFalse(get_user_model().objects.filter(username="missingfields").exists())
+        self.assertFalse(
+            get_user_model().objects.filter(username="missingfields").exists()
+        )
 
     def test_login_and_logout_flow(self):
         user_model = get_user_model()

@@ -45,6 +45,55 @@ Note:
 - Running without app labels can return `Found 0 test(s)` in this project layout.
 - Tests require a running Postgres instance.
 
+## Guardrails and CI
+
+### Install local hooks and tooling
+
+```bash
+uv tool run prek install --hook-type pre-commit --hook-type pre-push --overwrite
+```
+
+This installs `prek` git hooks for both `pre-commit` and `pre-push`.
+
+### Run the same checks as CI
+
+```bash
+uv run python scripts/uv_ci_local_validation.py
+```
+
+This command performs:
+
+1. `docker compose up -d db`
+2. `uv sync --locked`
+3. `uv run python stock_analysis/manage.py check`
+4. `uv run python stock_analysis/manage.py makemigrations --check --dry-run`
+5. `uv run python stock_analysis/manage.py test stocks investor`
+6. `uv tool run prek run --all-files --show-diff-on-failure`
+
+### Branch and PR contract
+
+- Branch naming:
+  - `feature/<slug>`
+  - `fix/<slug>`
+  - `chore/<slug>`
+  - `docs/<slug>`
+  - `refactor/<slug>`
+  - `test/<slug>`
+  - `hotfix/<slug>`
+  - `release/<slug>`
+- `main` is PR-only and protected by policy.
+- Merge policy is squash-only.
+- Required GitHub checks:
+  - `checks`
+  - `branch-policy`
+
+### Apply repository guardrails programmatically
+
+```bash
+scripts/apply_github_guardrails.sh --repo cmascis/stock_analysis --branch main --dry-run
+scripts/apply_github_guardrails.sh --repo cmascis/stock_analysis --branch main --apply
+```
+
 ## Data Flows
 
 ### Load fixture snapshot

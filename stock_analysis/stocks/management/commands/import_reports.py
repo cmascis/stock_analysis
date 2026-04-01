@@ -19,6 +19,7 @@ EPS_CODE_RE = re.compile(r"^(?P<code>\d{3})_EPS$")
 def to_decimal(v):
     return None if v in ("", None) else Decimal(str(v))
 
+
 def extract_eps_year(key: str) -> int | None:
     """
     Returns the year for EPS keys or None if the key isn't an EPS field.
@@ -39,6 +40,7 @@ def extract_eps_year(key: str) -> int | None:
 
     return None
 
+
 def eps_priority(key: str) -> int:
     # higher is better
     if re.match(r"^20\d{2}E_EPS$", key):
@@ -48,6 +50,7 @@ def eps_priority(key: str) -> int:
     if re.match(r"^\d{3}_EPS$", key):
         return 1
     return 0
+
 
 def parse_ticker_region(s: str) -> tuple[str, str]:
     """
@@ -122,7 +125,9 @@ class Command(BaseCommand):
                     "price": to_decimal(item.get("Price", None)),
                     "price_objective": to_decimal(item.get("Price_Objective", None)),
                     "upside": to_decimal(item.get("Upside", None)),
-                    "average_daily_value": to_decimal(item.get("Average_Daily_Value", None)),
+                    "average_daily_value": to_decimal(
+                        item.get("Average_Daily_Value", None)
+                    ),
                     "market_cap": to_decimal(item.get("Market_Cap", None)),
                 }
 

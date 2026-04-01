@@ -1,16 +1,14 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="uv import_reports" type="UvRunConfigurationType" factoryName="UvRunConfigurationType">
+  <configuration default="false" name="CI Local Validation (UvRun)" type="UvRunConfigurationType" factoryName="UvRunConfigurationType">
     <option name="args">
-      <list>
-        <option value="import_reports" />
-      </list>
+      <list />
     </option>
     <option name="checkSync" value="true" />
     <option name="env">
       <map />
     </option>
     <option name="runType" value="SCRIPT" />
-    <option name="scriptOrModule" value="$PROJECT_DIR$/stock_analysis/manage.py" />
+    <option name="scriptOrModule" value="$PROJECT_DIR$/scripts/uv_ci_local_validation.py" />
     <option name="uvArgs">
       <list />
     </option>

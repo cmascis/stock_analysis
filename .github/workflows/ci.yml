@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+      - master
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: stock_analysis
+          POSTGRES_USER: stock_analysis
+          POSTGRES_PASSWORD: stock_analysis
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U stock_analysis -d stock_analysis"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      POSTGRES_DB: stock_analysis
+      POSTGRES_USER: stock_analysis
+      POSTGRES_PASSWORD: stock_analysis
+      POSTGRES_HOST: 127.0.0.1
+      POSTGRES_PORT: "5432"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Django system checks
+        run: uv run python stock_analysis/manage.py check
+
+      - name: Migration drift check
+        run: uv run python stock_analysis/manage.py makemigrations --check --dry-run
+
+      - name: Django tests
+        run: uv run python stock_analysis/manage.py test stocks investor
+
+      - name: Run prek
+        run: uv tool run prek run --all-files --show-diff-on-failure

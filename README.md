@@ -76,6 +76,36 @@ Use app labels so Django discovers this project test suite consistently:
 uv run python stock_analysis/manage.py test stocks investor
 ```
 
+## CI and Guardrails
+
+This repository uses `prek` + `ruff` guardrails locally and in GitHub Actions.
+
+1. Install local hooks:
+
+   ```bash
+   uv tool run prek install --hook-type pre-commit --hook-type pre-push --overwrite
+   ```
+
+2. Run the full local CI equivalent:
+
+   ```bash
+   uv run python scripts/uv_ci_local_validation.py
+   ```
+
+3. Preview or apply GitHub guardrail settings:
+
+   ```bash
+   scripts/apply_github_guardrails.sh --repo cmascis/stock_analysis --branch main --dry-run
+   scripts/apply_github_guardrails.sh --repo cmascis/stock_analysis --branch main --apply
+   ```
+
+Required checks on pull requests to `main`:
+
+- `checks`
+- `branch-policy`
+
+See `docs/branching-strategy.md` and `docs/tooling.md` for branch naming and day-to-day workflow.
+
 ## Codex-Focused Documentation
 
 - `docs/CODEX_GUIDE.md`: fastest onboarding path for future Codex agents

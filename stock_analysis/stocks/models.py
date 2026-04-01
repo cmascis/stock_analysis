@@ -2,6 +2,7 @@ from django.db import models
 from django.utils import timezone
 import re
 
+
 class UppercaseCharField(models.CharField):
     def normalize(self, value):
         value = super().to_python(value)
@@ -19,6 +20,7 @@ class UppercaseCharField(models.CharField):
         value = self.normalize(getattr(model_instance, self.attname))
         setattr(model_instance, self.attname, value)
         return value
+
 
 class NormalizedRatingField(models.CharField):
     _ws = re.compile(r"\s+")
@@ -47,6 +49,7 @@ class Stock(models.Model):
     Example: AAPL, region 'US'.
     Decide what uniquely identifies a 'stock' in your system.
     """
+
     ticker = UppercaseCharField(max_length=16)
     region = UppercaseCharField(max_length=8, default="US")
     company_name = models.CharField(max_length=255)
@@ -55,7 +58,9 @@ class Stock(models.Model):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=["ticker", "region"], name="uniq_stock_ticker_region"),
+            models.UniqueConstraint(
+                fields=["ticker", "region"], name="uniq_stock_ticker_region"
+            ),
         ]
         indexes = [
             models.Index(fields=["ticker", "region"]),
@@ -64,11 +69,14 @@ class Stock(models.Model):
     def __str__(self) -> str:
         return f"{self.ticker} {self.region}"
 
+
 class DailyReport(models.Model):
     stock = models.ForeignKey(Stock, on_delete=models.CASCADE, related_name="reports")
 
     link = models.URLField(max_length=500, blank=True, default="")
-    as_of_timestamp = models.DateTimeField(default=timezone.now)  # as of date for report
+    as_of_timestamp = models.DateTimeField(
+        default=timezone.now
+    )  # as of date for report
     created_at = models.DateTimeField(auto_now_add=True)  # upon creation in database
     blurb = models.TextField(blank=True, default="")
 
@@ -83,13 +91,19 @@ class DailyReport(models.Model):
     # Money/metrics: store as raw numeric values in actual currency units.
     # Use DecimalField for safety; pick max_digits generously.
     price = models.DecimalField(max_digits=20, decimal_places=6, null=True, blank=True)
-    price_objective = models.DecimalField(max_digits=20, decimal_places=6, null=True, blank=True)
+    price_objective = models.DecimalField(
+        max_digits=20, decimal_places=6, null=True, blank=True
+    )
 
     # Upside as a fraction (e.g. 0.1234 = 12.34%) OR store percent.
     upside = models.DecimalField(max_digits=10, decimal_places=6, null=True, blank=True)
 
-    average_daily_value = models.DecimalField(max_digits=24, decimal_places=2, null=True, blank=True)
-    market_cap = models.DecimalField(max_digits=28, decimal_places=2, null=True, blank=True)
+    average_daily_value = models.DecimalField(
+        max_digits=24, decimal_places=2, null=True, blank=True
+    )
+    market_cap = models.DecimalField(
+        max_digits=28, decimal_places=2, null=True, blank=True
+    )
 
     class Meta:
         indexes = [
@@ -97,10 +111,16 @@ class DailyReport(models.Model):
             models.Index(fields=["stock", "rating", "-as_of_timestamp"]),
         ]
         ordering = ["-as_of_timestamp"]
-        constraints = [models.UniqueConstraint(fields=["stock", "as_of_timestamp"], name="uniq_report_as_of_timestamp_per_stock")]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["stock", "as_of_timestamp"],
+                name="uniq_report_as_of_timestamp_per_stock",
+            )
+        ]
 
     def __str__(self) -> str:
         return f"{self.stock} @ {self.as_of_timestamp:%Y-%m-%d %H:%M}"
+
 
 class ReportKeyTakeaway(models.Model):
     report = models.ForeignKey(
@@ -125,15 +145,20 @@ class ReportKeyTakeaway(models.Model):
 
     def __str__(self) -> str:
         return f"{self.report} takeaway #{self.order}: {self.text}"
-    
+
+
 class EPSForecast(models.Model):
-    report = models.ForeignKey(DailyReport, on_delete=models.CASCADE, related_name="eps_forecasts")
+    report = models.ForeignKey(
+        DailyReport, on_delete=models.CASCADE, related_name="eps_forecasts"
+    )
     year = models.PositiveSmallIntegerField()
     eps = models.DecimalField(max_digits=18, decimal_places=6)
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=["report", "year"], name="uniq_eps_year_per_report"),
+            models.UniqueConstraint(
+                fields=["report", "year"], name="uniq_eps_year_per_report"
+            ),
         ]
         indexes = [
             models.Index(fields=["year"]),

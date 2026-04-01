@@ -1,23 +1,29 @@
 from django.contrib import admin
 from .models import Stock, DailyReport, ReportKeyTakeaway, EPSForecast
 
+
 # Register your models here.
 @admin.register(Stock)
 class StockAdmin(admin.ModelAdmin):
-    list_display = ['ticker', 'region', 'company_name', 'currency_code']
+    list_display = ["ticker", "region", "company_name", "currency_code"]
     search_fields = ["ticker", "company_name"]
     list_filter = ["region", "currency_code"]
-    ordering = ["ticker",]
+    ordering = [
+        "ticker",
+    ]
 
     inlines = []
+
 
 class EPSForecastInline(admin.TabularInline):
     model = EPSForecast
     extra = 0
 
+
 class ReportKeyTakeawayInline(admin.TabularInline):
     model = ReportKeyTakeaway
     extra = 0
+
 
 @admin.register(DailyReport)
 class DailyReportAdmin(admin.ModelAdmin):

@@ -8,6 +8,7 @@ class InvestorProfile(models.Model):
     Optional but useful: a place to hang investor-specific fields later.
     Keeps you on built-in auth.User.
     """
+
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -34,7 +35,9 @@ class Watch(models.Model):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=["user", "stock"], name="uniq_watch_user_stock"),
+            models.UniqueConstraint(
+                fields=["user", "stock"], name="uniq_watch_user_stock"
+            ),
         ]
         indexes = [
             models.Index(fields=["user", "-created_at"]),
@@ -50,6 +53,7 @@ class HoldingSnapshot(models.Model):
     Append-only: never update, only insert a new row when user changes holdings.
     Represents the user's position in a stock 'as of' a timestamp.
     """
+
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -69,7 +73,9 @@ class HoldingSnapshot(models.Model):
     quantity = models.DecimalField(max_digits=24, decimal_places=6)
 
     # Optional: average cost basis per share (or total cost basis — choose one convention).
-    avg_cost = models.DecimalField(max_digits=24, decimal_places=6, null=True, blank=True)
+    avg_cost = models.DecimalField(
+        max_digits=24, decimal_places=6, null=True, blank=True
+    )
 
     notes = models.TextField(blank=True, default="")
 
@@ -79,7 +85,9 @@ class HoldingSnapshot(models.Model):
             models.Index(fields=["user", "-as_of"]),
         ]
         constraints = [
-            models.UniqueConstraint(fields=["user", "stock", "as_of"], name="uniq_snap_user_stock_as_of"),
+            models.UniqueConstraint(
+                fields=["user", "stock", "as_of"], name="uniq_snap_user_stock_as_of"
+            ),
         ]
 
     def __str__(self) -> str:

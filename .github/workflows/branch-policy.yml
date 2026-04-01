@@ -1,0 +1,33 @@
+name: Branch Policy
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  branch-policy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate source branch naming
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          echo "Evaluating source branch: ${HEAD_REF}"
+
+          if [[ "${HEAD_REF}" =~ ^(main|master)$ ]]; then
+            echo "::error::PRs into main must come from a topic branch, not ${HEAD_REF}."
+            exit 1
+          fi
+
+          if [[ "${HEAD_REF}" =~ ^dependabot/ ]]; then
+            echo "Dependabot branch detected. Passing policy check."
+            exit 0
+          fi
+
+          if [[ ! "${HEAD_REF}" =~ ^(feature|fix|chore|docs|refactor|test|hotfix|release)/[a-z0-9._-]+$ ]]; then
+            echo "::error::Branch '${HEAD_REF}' does not match required pattern."
+            echo "Use: <type>/<short-description>"
+            echo "Allowed types: feature, fix, chore, docs, refactor, test, hotfix, release"
+            exit 1
+          fi

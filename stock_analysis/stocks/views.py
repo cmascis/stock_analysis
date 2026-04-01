@@ -117,12 +117,16 @@ def _decimal_to_str(value):
 def _decimal_pretty(value):
     if value is None:
         return "-"
-    normalized = value.quantize(Decimal("0.01")) if value == value.to_integral_value() else value
+    normalized = (
+        value.quantize(Decimal("0.01")) if value == value.to_integral_value() else value
+    )
     return f"{normalized:,.2f}".rstrip("0").rstrip(".")
 
 
 def _build_advanced_stock_queryset():
-    latest_report = DailyReport.objects.filter(stock=OuterRef("pk")).order_by("-as_of_timestamp")
+    latest_report = DailyReport.objects.filter(stock=OuterRef("pk")).order_by(
+        "-as_of_timestamp"
+    )
     latest_price_report = DailyReport.objects.filter(
         stock=OuterRef("pk"),
         price__isnull=False,
@@ -143,28 +147,54 @@ def _build_advanced_stock_queryset():
         stock=OuterRef("pk"),
         average_daily_value__isnull=False,
     ).order_by("-as_of_timestamp")
-    latest_rating_report = DailyReport.objects.filter(stock=OuterRef("pk")).exclude(rating="").order_by("-as_of_timestamp")
-    latest_team_report = DailyReport.objects.filter(stock=OuterRef("pk")).exclude(analyst_team="").order_by(
-        "-as_of_timestamp"
+    latest_rating_report = (
+        DailyReport.objects.filter(stock=OuterRef("pk"))
+        .exclude(rating="")
+        .order_by("-as_of_timestamp")
+    )
+    latest_team_report = (
+        DailyReport.objects.filter(stock=OuterRef("pk"))
+        .exclude(analyst_team="")
+        .order_by("-as_of_timestamp")
     )
 
     return (
         Stock.objects.annotate(
             latest_report_at=Subquery(latest_report.values("as_of_timestamp")[:1]),
             latest_price=Subquery(latest_price_report.values("price")[:1]),
-            latest_price_as_of=Subquery(latest_price_report.values("as_of_timestamp")[:1]),
-            latest_price_objective=Subquery(latest_objective_report.values("price_objective")[:1]),
-            latest_price_objective_as_of=Subquery(latest_objective_report.values("as_of_timestamp")[:1]),
+            latest_price_as_of=Subquery(
+                latest_price_report.values("as_of_timestamp")[:1]
+            ),
+            latest_price_objective=Subquery(
+                latest_objective_report.values("price_objective")[:1]
+            ),
+            latest_price_objective_as_of=Subquery(
+                latest_objective_report.values("as_of_timestamp")[:1]
+            ),
             latest_upside=Subquery(latest_upside_report.values("upside")[:1]),
-            latest_upside_as_of=Subquery(latest_upside_report.values("as_of_timestamp")[:1]),
-            latest_market_cap=Subquery(latest_market_cap_report.values("market_cap")[:1]),
-            latest_market_cap_as_of=Subquery(latest_market_cap_report.values("as_of_timestamp")[:1]),
-            latest_average_daily_value=Subquery(latest_adv_report.values("average_daily_value")[:1]),
-            latest_average_daily_value_as_of=Subquery(latest_adv_report.values("as_of_timestamp")[:1]),
+            latest_upside_as_of=Subquery(
+                latest_upside_report.values("as_of_timestamp")[:1]
+            ),
+            latest_market_cap=Subquery(
+                latest_market_cap_report.values("market_cap")[:1]
+            ),
+            latest_market_cap_as_of=Subquery(
+                latest_market_cap_report.values("as_of_timestamp")[:1]
+            ),
+            latest_average_daily_value=Subquery(
+                latest_adv_report.values("average_daily_value")[:1]
+            ),
+            latest_average_daily_value_as_of=Subquery(
+                latest_adv_report.values("as_of_timestamp")[:1]
+            ),
             latest_rating=Subquery(latest_rating_report.values("rating")[:1]),
-            latest_rating_as_of=Subquery(latest_rating_report.values("as_of_timestamp")[:1]),
+            latest_rating_as_of=Subquery(
+                latest_rating_report.values("as_of_timestamp")[:1]
+            ),
             latest_analyst_team=Subquery(latest_team_report.values("analyst_team")[:1]),
-            latest_analyst_team_as_of=Subquery(latest_team_report.values("as_of_timestamp")[:1]),
+            latest_analyst_team_as_of=Subquery(
+                latest_team_report.values("as_of_timestamp")[:1]
+            ),
         )
         .annotate(
             latest_upside_pct=ExpressionWrapper(
@@ -230,8 +260,11 @@ def _build_priority_labels(sort_priority):
     label_map = dict(SORT_FIELD_CHOICES)
     labels = []
     for field_key, direction in sort_priority:
-        labels.append(f"{label_map.get(field_key, field_key)} ({'Descending' if direction == 'desc' else 'Ascending'})")
+        labels.append(
+            f"{label_map.get(field_key, field_key)} ({'Descending' if direction == 'desc' else 'Ascending'})"
+        )
     return labels
+
 
 def _to_percent(value):
     if value is None:
@@ -245,7 +278,9 @@ def _build_holdings_rows(user):
         stock=OuterRef("pk"),
     ).order_by("-as_of", "-id")
 
-    latest_report = DailyReport.objects.filter(stock=OuterRef("pk")).order_by("-as_of_timestamp")
+    latest_report = DailyReport.objects.filter(stock=OuterRef("pk")).order_by(
+        "-as_of_timestamp"
+    )
 
     holdings = (
         Stock.objects.filter(holding_snapshots__user=user)
@@ -256,7 +291,9 @@ def _build_holdings_rows(user):
             holding_as_of=Subquery(latest_snapshot.values("as_of")[:1]),
             latest_report_at=Subquery(latest_report.values("as_of_timestamp")[:1]),
             latest_price=Subquery(latest_report.values("price")[:1]),
-            latest_price_objective=Subquery(latest_report.values("price_objective")[:1]),
+            latest_price_objective=Subquery(
+                latest_report.values("price_objective")[:1]
+            ),
             latest_upside=Subquery(latest_report.values("upside")[:1]),
             latest_rating=Subquery(latest_report.values("rating")[:1]),
         )
@@ -270,9 +307,19 @@ def _build_holdings_rows(user):
         objective = stock.latest_price_objective
         avg_cost = stock.holding_avg_cost
 
-        position_value = quantity * price if quantity is not None and price is not None else None
-        cost_basis_value = quantity * avg_cost if quantity is not None and avg_cost is not None else None
-        objective_value = quantity * objective if quantity is not None and objective is not None else None
+        position_value = (
+            quantity * price if quantity is not None and price is not None else None
+        )
+        cost_basis_value = (
+            quantity * avg_cost
+            if quantity is not None and avg_cost is not None
+            else None
+        )
+        objective_value = (
+            quantity * objective
+            if quantity is not None and objective is not None
+            else None
+        )
         target_change_value = (
             quantity * (objective - price)
             if quantity is not None and objective is not None and price is not None
@@ -300,7 +347,9 @@ def _build_holdings_rows(user):
 
 
 def _build_watchlist_rows(user):
-    latest_report = DailyReport.objects.filter(stock=OuterRef("stock_id")).order_by("-as_of_timestamp")
+    latest_report = DailyReport.objects.filter(stock=OuterRef("stock_id")).order_by(
+        "-as_of_timestamp"
+    )
 
     watches = (
         Watch.objects.filter(user=user)
@@ -309,7 +358,9 @@ def _build_watchlist_rows(user):
             latest_report_at=Subquery(latest_report.values("as_of_timestamp")[:1]),
             latest_rating=Subquery(latest_report.values("rating")[:1]),
             latest_price=Subquery(latest_report.values("price")[:1]),
-            latest_price_objective=Subquery(latest_report.values("price_objective")[:1]),
+            latest_price_objective=Subquery(
+                latest_report.values("price_objective")[:1]
+            ),
             latest_upside=Subquery(latest_report.values("upside")[:1]),
             latest_analyst_team=Subquery(latest_report.values("analyst_team")[:1]),
         )
@@ -355,7 +406,9 @@ def _build_window_summary(window_label, start_at):
         .first()
     )
 
-    latest_per_stock = reports.order_by("stock_id", "-as_of_timestamp").distinct("stock_id")
+    latest_per_stock = reports.order_by("stock_id", "-as_of_timestamp").distinct(
+        "stock_id"
+    )
     previous_price_objective = Subquery(
         DailyReport.objects.filter(
             stock=OuterRef("stock_id"),
@@ -441,8 +494,12 @@ def home(request):
         holdings_rows = _build_holdings_rows(request.user)
         watchlist_rows = _build_watchlist_rows(request.user)
 
-        total_position_value = sum((row["position_value"] or Decimal("0")) for row in holdings_rows)
-        total_target_change = sum((row["target_change_value"] or Decimal("0")) for row in holdings_rows)
+        total_position_value = sum(
+            (row["position_value"] or Decimal("0")) for row in holdings_rows
+        )
+        total_target_change = sum(
+            (row["target_change_value"] or Decimal("0")) for row in holdings_rows
+        )
 
         context.update(
             {
@@ -465,7 +522,9 @@ def stock_search_suggestions(request):
         return JsonResponse({"results": []})
 
     results = (
-        Stock.objects.filter(Q(ticker__icontains=query) | Q(company_name__icontains=query))
+        Stock.objects.filter(
+            Q(ticker__icontains=query) | Q(company_name__icontains=query)
+        )
         .annotate(
             match_priority=Case(
                 When(ticker__iexact=query, then=Value(0)),
@@ -502,7 +561,9 @@ def advanced_stock_search(request):
     currency_filter = (request.GET.get("currency_code") or "").strip()
 
     if search_text:
-        queryset = queryset.filter(Q(ticker__icontains=search_text) | Q(company_name__icontains=search_text))
+        queryset = queryset.filter(
+            Q(ticker__icontains=search_text) | Q(company_name__icontains=search_text)
+        )
         active_filters.append(f"Name contains '{search_text}'")
     if ticker_filter:
         queryset = queryset.filter(ticker__icontains=ticker_filter)
@@ -589,8 +650,12 @@ def advanced_stock_search(request):
                 "bound_max_display": _decimal_pretty(slider_max),
                 "range_min": _decimal_to_str(range_min_value),
                 "range_max": _decimal_to_str(range_max_value),
-                "input_min": _decimal_to_str(min_value) if min_value is not None else "",
-                "input_max": _decimal_to_str(max_value) if max_value is not None else "",
+                "input_min": _decimal_to_str(min_value)
+                if min_value is not None
+                else "",
+                "input_max": _decimal_to_str(max_value)
+                if max_value is not None
+                else "",
             }
         )
 
@@ -645,15 +710,19 @@ def stock_detail(request, stock_id):
         for report in reversed(reports)
         if report.price is not None or report.price_objective is not None
     ]
-    chart_labels = [report.as_of_timestamp.strftime("%Y-%m-%d") for report in chart_reports]
-    chart_price_values = [float(report.price) if report.price is not None else None for report in chart_reports]
+    chart_labels = [
+        report.as_of_timestamp.strftime("%Y-%m-%d") for report in chart_reports
+    ]
+    chart_price_values = [
+        float(report.price) if report.price is not None else None
+        for report in chart_reports
+    ]
     chart_objective_values = [
         float(report.price_objective) if report.price_objective is not None else None
         for report in chart_reports
     ]
     chart_has_data = any(
-        value is not None
-        for value in (chart_price_values + chart_objective_values)
+        value is not None for value in (chart_price_values + chart_objective_values)
     )
 
     latest_report = reports[0] if reports else None
@@ -665,14 +734,18 @@ def stock_detail(request, stock_id):
         and latest_report.price_objective is not None
         and previous_report.price_objective is not None
     ):
-        objective_change = latest_report.price_objective - previous_report.price_objective
+        objective_change = (
+            latest_report.price_objective - previous_report.price_objective
+        )
 
     context = {
         "stock": stock,
         "reports": reports,
         "report_count": len(reports),
         "latest_report": latest_report,
-        "latest_upside_pct": _to_percent(latest_report.upside) if latest_report else None,
+        "latest_upside_pct": _to_percent(latest_report.upside)
+        if latest_report
+        else None,
         "objective_change": objective_change,
         "chart_labels": chart_labels,
         "chart_price_values": chart_price_values,

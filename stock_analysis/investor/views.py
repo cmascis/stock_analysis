@@ -4,6 +4,7 @@ from django.contrib.auth import login
 from django.shortcuts import render, redirect
 from .forms import InvestorSignupForm
 
+
 def signup(request):
     if request.method == "POST":
         form = InvestorSignupForm(request.POST)

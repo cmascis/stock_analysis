@@ -18,12 +18,18 @@ class HomeViewTests(TestCase):
         self.assertContains(response, "Stock Analysis")
 
     def test_signed_in_home_shows_dashboard_data(self):
-        user = get_user_model().objects.create_user(username="investor", password="S3cur3Pass123!!")
+        user = get_user_model().objects.create_user(
+            username="investor", password="S3cur3Pass123!!"
+        )
         self.client.force_login(user)
 
         now = timezone.now()
-        aapl = Stock.objects.create(ticker="AAPL", region="US", company_name="Apple Inc.")
-        msft = Stock.objects.create(ticker="MSFT", region="US", company_name="Microsoft Corp.")
+        aapl = Stock.objects.create(
+            ticker="AAPL", region="US", company_name="Apple Inc."
+        )
+        msft = Stock.objects.create(
+            ticker="MSFT", region="US", company_name="Microsoft Corp."
+        )
 
         HoldingSnapshot.objects.create(
             user=user,
@@ -84,7 +90,9 @@ class HomeViewTests(TestCase):
         self.assertEqual(len(response.context["report_windows"]), 3)
 
     def test_stock_detail_page_shows_chart_and_reports(self):
-        stock = Stock.objects.create(ticker="NVDA", region="US", company_name="NVIDIA Corp.")
+        stock = Stock.objects.create(
+            ticker="NVDA", region="US", company_name="NVIDIA Corp."
+        )
         now = timezone.now()
         first_report = DailyReport.objects.create(
             stock=stock,
@@ -120,7 +128,9 @@ class HomeViewTests(TestCase):
 
 class SearchAndAdvancedViewTests(TestCase):
     def test_stock_search_endpoint_returns_ticker_and_company_matches(self):
-        aapl = Stock.objects.create(ticker="AAPL", region="US", company_name="Apple Inc.")
+        aapl = Stock.objects.create(
+            ticker="AAPL", region="US", company_name="Apple Inc."
+        )
         Stock.objects.create(ticker="MSFT", region="US", company_name="Microsoft Corp.")
         Stock.objects.create(ticker="APP", region="US", company_name="AppLovin Corp.")
 
@@ -132,13 +142,24 @@ class SearchAndAdvancedViewTests(TestCase):
         tickers = [item["ticker"] for item in payload["results"]]
         self.assertIn("AAPL", tickers)
         self.assertIn("APP", tickers)
-        self.assertTrue(any(item["url"] == reverse("stock_detail", args=[aapl.id]) for item in payload["results"]))
+        self.assertTrue(
+            any(
+                item["url"] == reverse("stock_detail", args=[aapl.id])
+                for item in payload["results"]
+            )
+        )
 
     def test_advanced_search_supports_filtering_and_priority_sorting(self):
         now = timezone.now()
-        alpha = Stock.objects.create(ticker="AAA", region="US", company_name="Alpha Inc.", currency_code="USD")
-        beta = Stock.objects.create(ticker="BBB", region="US", company_name="Beta Corp.", currency_code="USD")
-        Stock.objects.create(ticker="CCC", region="CA", company_name="Canada Co.", currency_code="CAD")
+        alpha = Stock.objects.create(
+            ticker="AAA", region="US", company_name="Alpha Inc.", currency_code="USD"
+        )
+        beta = Stock.objects.create(
+            ticker="BBB", region="US", company_name="Beta Corp.", currency_code="USD"
+        )
+        Stock.objects.create(
+            ticker="CCC", region="CA", company_name="Canada Co.", currency_code="CAD"
+        )
 
         DailyReport.objects.create(
             stock=alpha,
@@ -184,16 +205,24 @@ class SearchAndAdvancedViewTests(TestCase):
         self.assertEqual([stock.ticker for stock in rows], ["BBB", "AAA"])
         alpha_row = next(stock for stock in rows if stock.ticker == "AAA")
         self.assertEqual(alpha_row.latest_price, Decimal("120.000000"))
-        self.assertEqual(alpha_row.latest_price_as_of.date(), (now - timedelta(days=3)).date())
+        self.assertEqual(
+            alpha_row.latest_price_as_of.date(), (now - timedelta(days=3)).date()
+        )
         self.assertContains(response, "Current Query Priority")
         self.assertContains(response, "Region contains")
         self.assertContains(response, "Price between")
 
     def test_advanced_search_default_ordering_is_recent_then_high_upside(self):
         now = timezone.now()
-        first = Stock.objects.create(ticker="FIRST", region="US", company_name="First Corp.")
-        second = Stock.objects.create(ticker="SECOND", region="US", company_name="Second Corp.")
-        third = Stock.objects.create(ticker="THIRD", region="US", company_name="Third Corp.")
+        first = Stock.objects.create(
+            ticker="FIRST", region="US", company_name="First Corp."
+        )
+        second = Stock.objects.create(
+            ticker="SECOND", region="US", company_name="Second Corp."
+        )
+        third = Stock.objects.create(
+            ticker="THIRD", region="US", company_name="Third Corp."
+        )
 
         DailyReport.objects.create(
             stock=first,
