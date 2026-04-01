@@ -24,15 +24,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
+          python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Sync dependencies
         run: uv sync --group dev --frozen
@@ -50,21 +46,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
+          python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Sync dependencies
         run: uv sync --group dev --frozen
 
       - name: Check migration drift
-        run: uv run python stock_analysis/manage.py makemigrations --check --dry-run
+        run: uv run stock_analysis/manage.py makemigrations --check --dry-run
 
   tests:
     name: tests
@@ -93,21 +85,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
+          python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Sync dependencies
         run: uv sync --group dev --frozen
 
       - name: Run migrations
-        run: uv run python stock_analysis/manage.py migrate --noinput
+        run: uv run stock_analysis/manage.py migrate --noinput
 
       - name: Run test suite
-        run: uv run python stock_analysis/manage.py test stocks investor
+        run: uv run stock_analysis/manage.py test stocks investor

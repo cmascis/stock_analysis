@@ -20,12 +20,12 @@ echo "Running lint and file guardrails..."
 uv run prek run --all-files --hook-stage pre-commit
 
 echo "Checking migration drift..."
-uv run python stock_analysis/manage.py makemigrations --check --dry-run
+uv run stock_analysis/manage.py makemigrations --check --dry-run
 
 echo "Applying migrations..."
-uv run python stock_analysis/manage.py migrate --noinput
+uv run stock_analysis/manage.py migrate --noinput
 
 echo "Running tests..."
-uv run python stock_analysis/manage.py test stocks investor
+uv run stock_analysis/manage.py test stocks investor
 
 echo "Local CI checks passed."

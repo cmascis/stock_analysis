@@ -32,21 +32,21 @@ repos:
 
       - id: django-migration-drift
         name: django migration drift check
-        entry: uv run python stock_analysis/manage.py makemigrations --check --dry-run
+        entry: uv run stock_analysis/manage.py makemigrations --check --dry-run
         language: system
         pass_filenames: false
         stages: [pre-push]
 
       - id: django-migrate
         name: django migrate
-        entry: uv run python stock_analysis/manage.py migrate --noinput
+        entry: uv run stock_analysis/manage.py migrate --noinput
         language: system
         pass_filenames: false
         stages: [pre-push]
 
       - id: django-tests
         name: django tests
-        entry: uv run python stock_analysis/manage.py test stocks investor
+        entry: uv run stock_analysis/manage.py test stocks investor
         language: system
         pass_filenames: false
         stages: [pre-push]

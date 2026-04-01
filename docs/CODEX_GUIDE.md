@@ -61,8 +61,8 @@ Follow existing patterns before introducing new query shapes.
 ## Gotchas
 
 - Tests require a reachable Postgres instance; app defaults point to `localhost:5432`.
-- `uv run python stock_analysis/manage.py test` can report `0` tests; use explicit labels:
-  - `uv run python stock_analysis/manage.py test stocks investor`
+- `uv run stock_analysis/manage.py test` can report `0` tests; use explicit labels:
+  - `uv run stock_analysis/manage.py test stocks investor`
 - `stock_detail.html` depends on external Chart.js CDN:
   - `https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js`
 - `import_reports` reads from `stock_analysis/company_jsons/` and skips malformed records.
@@ -92,10 +92,10 @@ When changing auth behavior:
 ```bash
 docker compose up -d db
 uv sync
-uv run python stock_analysis/manage.py migrate
-uv run python stock_analysis/manage.py runserver
-uv run python stock_analysis/manage.py test stocks investor
-uv run python stock_analysis/manage.py import_reports --dry-run
+uv run stock_analysis/manage.py migrate
+uv run stock_analysis/manage.py runserver
+uv run stock_analysis/manage.py test stocks investor
+uv run stock_analysis/manage.py import_reports --dry-run
 ```
 
 ## High-Value Files to Read First

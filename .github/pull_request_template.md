@@ -5,8 +5,8 @@ Describe what changed and why.
 ## Validation
 
 - [ ] `uv run prek run --all-files --hook-stage pre-commit`
-- [ ] `uv run python stock_analysis/manage.py makemigrations --check --dry-run`
-- [ ] `uv run python stock_analysis/manage.py test stocks investor`
+- [ ] `uv run stock_analysis/manage.py makemigrations --check --dry-run`
+- [ ] `uv run stock_analysis/manage.py test stocks investor`
 
 ## Checklist
 

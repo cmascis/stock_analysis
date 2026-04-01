@@ -37,19 +37,19 @@ Dependency and tooling management is `uv`-only in this repository.
 3. Run migrations:
 
    ```bash
-   uv run python stock_analysis/manage.py migrate
+   uv run stock_analysis/manage.py migrate
    ```
 
 4. (Optional) load fixture data:
 
    ```bash
-   uv run python stock_analysis/manage.py loaddata mysite_data.json
+   uv run stock_analysis/manage.py loaddata mysite_data.json
    ```
 
 5. Run dev server:
 
    ```bash
-   uv run python stock_analysis/manage.py runserver
+   uv run stock_analysis/manage.py runserver
    ```
 
 ## Data Import
@@ -61,13 +61,13 @@ The custom command `import_reports` reads JSON files from:
 Run:
 
 ```bash
-uv run python stock_analysis/manage.py import_reports
+uv run stock_analysis/manage.py import_reports
 ```
 
 Dry run:
 
 ```bash
-uv run python stock_analysis/manage.py import_reports --dry-run
+uv run stock_analysis/manage.py import_reports --dry-run
 ```
 
 ## Tests
@@ -75,7 +75,7 @@ uv run python stock_analysis/manage.py import_reports --dry-run
 Use app labels so Django discovers this project test suite consistently:
 
 ```bash
-uv run python stock_analysis/manage.py test stocks investor
+uv run stock_analysis/manage.py test stocks investor
 ```
 
 ## CI and Guardrails
