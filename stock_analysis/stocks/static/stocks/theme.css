@@ -662,6 +662,21 @@ h2 {
     outline: 3px solid rgba(13, 106, 88, 0.18);
 }
 
+.filter-field select {
+    background: #fff;
+    border: 1px solid rgba(20, 55, 42, 0.2);
+    border-radius: 10px;
+    color: var(--text);
+    font: inherit;
+    padding: 9px 11px;
+    width: 100%;
+}
+
+.filter-field select:focus {
+    border-color: #0d6a58;
+    outline: 3px solid rgba(13, 106, 88, 0.18);
+}
+
 .range-filter-grid {
     display: grid;
     gap: 12px;
@@ -965,6 +980,7 @@ h2 {
     .report-select {
         width: 100%;
     }
+
 }
 
 @media (max-width: 700px) {
