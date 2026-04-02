@@ -67,7 +67,7 @@
                                 <th>Rating</th>
                                 <th>Position Value</th>
                                 <th>Target Delta</th>
-                                <th>Report As Of</th>
+                                <th>Latest Report</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -83,10 +83,38 @@
                                     </td>
                                     <td>{{ row.quantity|floatformat:4|intcomma }}</td>
                                     <td>{% if row.avg_cost is not None %}${{ row.avg_cost|floatformat:2|intcomma }}{% else %}-{% endif %}</td>
-                                    <td>{% if row.price is not None %}${{ row.price|floatformat:2|intcomma }}{% else %}-{% endif %}</td>
-                                    <td>{% if row.price_objective is not None %}${{ row.price_objective|floatformat:2|intcomma }}{% else %}-{% endif %}</td>
-                                    <td>{% if row.upside_pct is not None %}{{ row.upside_pct|floatformat:2|intcomma }}%{% else %}-{% endif %}</td>
-                                    <td>{% if row.rating %}{{ row.rating|cut:"_"|title }}{% else %}-{% endif %}</td>
+                                    <td>
+                                        {% if row.price is not None %}
+                                            ${{ row.price|floatformat:2|intcomma }}
+                                            {% if row.price_as_of %}<small class="as-of">{{ row.price_as_of|date:"M j, Y" }}</small>{% endif %}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if row.price_objective is not None %}
+                                            ${{ row.price_objective|floatformat:2|intcomma }}
+                                            {% if row.price_objective_as_of %}<small class="as-of">{{ row.price_objective_as_of|date:"M j, Y" }}</small>{% endif %}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if row.upside_pct is not None %}
+                                            {{ row.upside_pct|floatformat:2|intcomma }}%
+                                            {% if row.upside_as_of %}<small class="as-of">{{ row.upside_as_of|date:"M j, Y" }}</small>{% endif %}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if row.rating %}
+                                            {{ row.rating|cut:"_"|title }}
+                                            {% if row.rating_as_of %}<small class="as-of">{{ row.rating_as_of|date:"M j, Y" }}</small>{% endif %}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
                                     <td>{% if row.position_value is not None %}${{ row.position_value|floatformat:2|intcomma }}{% else %}-{% endif %}</td>
                                     <td>
                                         {% if row.target_change_value is not None %}
@@ -125,14 +153,42 @@
                             <p class="subtle">{{ row.stock.company_name }}</p>
                             <dl>
                                 <dt>Latest price</dt>
-                                <dd>{% if row.price is not None %}${{ row.price|floatformat:2|intcomma }}{% else %}-{% endif %}</dd>
+                                <dd>
+                                    {% if row.price is not None %}
+                                        ${{ row.price|floatformat:2|intcomma }}
+                                        {% if row.price_as_of %}<small class="as-of">{{ row.price_as_of|date:"M j, Y" }}</small>{% endif %}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </dd>
                                 <dt>Price objective</dt>
-                                <dd>{% if row.price_objective is not None %}${{ row.price_objective|floatformat:2|intcomma }}{% else %}-{% endif %}</dd>
+                                <dd>
+                                    {% if row.price_objective is not None %}
+                                        ${{ row.price_objective|floatformat:2|intcomma }}
+                                        {% if row.price_objective_as_of %}<small class="as-of">{{ row.price_objective_as_of|date:"M j, Y" }}</small>{% endif %}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </dd>
                                 <dt>Upside</dt>
-                                <dd>{% if row.upside_pct is not None %}{{ row.upside_pct|floatformat:2|intcomma }}%{% else %}-{% endif %}</dd>
+                                <dd>
+                                    {% if row.upside_pct is not None %}
+                                        {{ row.upside_pct|floatformat:2|intcomma }}%
+                                        {% if row.upside_as_of %}<small class="as-of">{{ row.upside_as_of|date:"M j, Y" }}</small>{% endif %}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </dd>
                                 <dt>Rating</dt>
-                                <dd>{% if row.rating %}{{ row.rating|cut:"_"|title }}{% else %}-{% endif %}</dd>
-                                <dt>As of</dt>
+                                <dd>
+                                    {% if row.rating %}
+                                        {{ row.rating|cut:"_"|title }}
+                                        {% if row.rating_as_of %}<small class="as-of">{{ row.rating_as_of|date:"M j, Y" }}</small>{% endif %}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </dd>
+                                <dt>Latest report</dt>
                                 <dd>{% if row.report_at %}{{ row.report_at|date:"M j, Y" }}{% else %}-{% endif %}</dd>
                             </dl>
                         </article>
@@ -146,7 +202,7 @@
         <section class="dashboard-section reveal delay-2">
             <div class="section-head">
                 <h2>Report Leaders by Time Window</h2>
-                <span class="subtle">Best upside, most reported stock, and biggest objective upgrade.</span>
+                <span class="subtle">Best upside, most reported stock, and biggest objective moves up and down.</span>
             </div>
             <div class="window-grid">
                 {% for window in report_windows %}
@@ -194,6 +250,21 @@
                                     (+${{ window.largest_upgrade.upgrade_amount|floatformat:2|intcomma }})
                                 </strong>
                                 <small>{{ window.largest_upgrade.company_name }}: ${{ window.largest_upgrade.from_objective|floatformat:2|intcomma }} -> ${{ window.largest_upgrade.to_objective|floatformat:2|intcomma }}</small>
+                            {% else %}
+                                <strong>-</strong>
+                            {% endif %}
+                        </div>
+
+                        <div class="window-metric">
+                            <span>Largest objective downgrade</span>
+                            {% if window.largest_downgrade %}
+                                <strong>
+                                    <a class="stock-link" href="{% url 'stock_detail' window.largest_downgrade.stock.id %}">
+                                        {{ window.largest_downgrade.stock.ticker }} {{ window.largest_downgrade.stock.region }}
+                                    </a>
+                                    (-${{ window.largest_downgrade.downgrade_amount|floatformat:2|intcomma }})
+                                </strong>
+                                <small>{{ window.largest_downgrade.company_name }}: ${{ window.largest_downgrade.from_objective|floatformat:2|intcomma }} -> ${{ window.largest_downgrade.to_objective|floatformat:2|intcomma }}</small>
                             {% else %}
                                 <strong>-</strong>
                             {% endif %}

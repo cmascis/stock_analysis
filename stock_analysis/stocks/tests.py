@@ -82,12 +82,150 @@ class HomeViewTests(TestCase):
         self.assertContains(response, "Report Leaders by Time Window")
         self.assertContains(response, "AAPL US")
         self.assertContains(response, "MSFT US")
+        self.assertContains(response, "Latest Report")
+        self.assertContains(response, "Latest report")
         self.assertContains(response, reverse("stock_detail", args=[aapl.id]))
         self.assertContains(response, reverse("stock_detail", args=[msft.id]))
 
         self.assertEqual(len(response.context["holdings_rows"]), 1)
         self.assertEqual(len(response.context["watchlist_rows"]), 2)
         self.assertEqual(len(response.context["report_windows"]), 3)
+
+    def test_home_dashboard_uses_latest_non_null_report_per_field(self):
+        user = get_user_model().objects.create_user(
+            username="provenance", password="S3cur3Pass123!!"
+        )
+        self.client.force_login(user)
+
+        now = timezone.now()
+        stock = Stock.objects.create(
+            ticker="ACME",
+            region="US",
+            company_name="Acme Holdings",
+            currency_code="USD",
+        )
+        HoldingSnapshot.objects.create(
+            user=user,
+            stock=stock,
+            as_of=now - timedelta(days=1),
+            quantity=Decimal("10.0000"),
+            avg_cost=Decimal("88.00"),
+        )
+        Watch.objects.create(user=user, stock=stock)
+
+        DailyReport.objects.create(
+            stock=stock,
+            as_of_timestamp=now - timedelta(days=5),
+            price=Decimal("90.00"),
+            price_objective=Decimal("120.00"),
+            upside=Decimal("0.2000"),
+            rating="HOLD",
+        )
+        mid_report = DailyReport.objects.create(
+            stock=stock,
+            as_of_timestamp=now - timedelta(days=2),
+            price=None,
+            price_objective=Decimal("135.00"),
+            upside=None,
+            rating="",
+        )
+        latest_report = DailyReport.objects.create(
+            stock=stock,
+            as_of_timestamp=now - timedelta(hours=1),
+            price=Decimal("100.00"),
+            price_objective=None,
+            upside=Decimal("0.1000"),
+            rating="BUY",
+        )
+
+        response = self.client.get(reverse("home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "From report")
+        self.assertContains(response, "Latest Report")
+        self.assertContains(response, "Latest report")
+
+        holdings_row = response.context["holdings_rows"][0]
+        self.assertEqual(holdings_row["price"], Decimal("100.000000"))
+        self.assertEqual(holdings_row["price_as_of"], latest_report.as_of_timestamp)
+        self.assertEqual(holdings_row["price_objective"], Decimal("135.000000"))
+        self.assertEqual(
+            holdings_row["price_objective_as_of"], mid_report.as_of_timestamp
+        )
+        self.assertEqual(holdings_row["upside_pct"], Decimal("10.000000"))
+        self.assertEqual(holdings_row["upside_as_of"], latest_report.as_of_timestamp)
+        self.assertEqual(holdings_row["rating"], "BUY")
+        self.assertEqual(holdings_row["rating_as_of"], latest_report.as_of_timestamp)
+        self.assertEqual(holdings_row["report_at"], latest_report.as_of_timestamp)
+
+        watchlist_row = response.context["watchlist_rows"][0]
+        self.assertEqual(watchlist_row["price"], Decimal("100.000000"))
+        self.assertEqual(watchlist_row["price_as_of"], latest_report.as_of_timestamp)
+        self.assertEqual(watchlist_row["price_objective"], Decimal("135.000000"))
+        self.assertEqual(
+            watchlist_row["price_objective_as_of"], mid_report.as_of_timestamp
+        )
+        self.assertEqual(watchlist_row["upside_pct"], Decimal("10.000000"))
+        self.assertEqual(watchlist_row["upside_as_of"], latest_report.as_of_timestamp)
+        self.assertEqual(watchlist_row["rating"], "BUY")
+        self.assertEqual(watchlist_row["rating_as_of"], latest_report.as_of_timestamp)
+        self.assertEqual(watchlist_row["report_at"], latest_report.as_of_timestamp)
+
+    def test_home_report_leaders_includes_upgrade_and_downgrade(self):
+        user = get_user_model().objects.create_user(
+            username="leaders_delta", password="S3cur3Pass123!!"
+        )
+        self.client.force_login(user)
+        now = timezone.now()
+
+        upgrade_stock = Stock.objects.create(
+            ticker="UP1",
+            region="US",
+            company_name="Upgrade Name",
+            currency_code="USD",
+        )
+        downgrade_stock = Stock.objects.create(
+            ticker="DOWN1",
+            region="US",
+            company_name="Downgrade Name",
+            currency_code="USD",
+        )
+
+        DailyReport.objects.create(
+            stock=upgrade_stock,
+            as_of_timestamp=now - timedelta(days=10),
+            price_objective=Decimal("100.00"),
+        )
+        DailyReport.objects.create(
+            stock=upgrade_stock,
+            as_of_timestamp=now - timedelta(hours=3),
+            price_objective=Decimal("140.00"),
+            upside=Decimal("0.1200"),
+        )
+
+        DailyReport.objects.create(
+            stock=downgrade_stock,
+            as_of_timestamp=now - timedelta(days=8),
+            price_objective=Decimal("250.00"),
+        )
+        DailyReport.objects.create(
+            stock=downgrade_stock,
+            as_of_timestamp=now - timedelta(hours=2),
+            price_objective=Decimal("190.00"),
+            upside=Decimal("0.0900"),
+        )
+
+        response = self.client.get(reverse("home"))
+        window = response.context["report_windows"][0]
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Largest objective downgrade")
+        self.assertIsNotNone(window["largest_upgrade"])
+        self.assertEqual(window["largest_upgrade"]["stock"].id, upgrade_stock.id)
+        self.assertEqual(window["largest_upgrade"]["upgrade_amount"], Decimal("40"))
+        self.assertIsNotNone(window["largest_downgrade"])
+        self.assertEqual(window["largest_downgrade"]["stock"].id, downgrade_stock.id)
+        self.assertEqual(window["largest_downgrade"]["downgrade_amount"], Decimal("60"))
 
     def test_stock_detail_page_shows_chart_and_reports(self):
         stock = Stock.objects.create(

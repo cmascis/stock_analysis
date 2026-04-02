@@ -281,6 +281,23 @@ def _build_holdings_rows(user):
     latest_report = DailyReport.objects.filter(stock=OuterRef("pk")).order_by(
         "-as_of_timestamp"
     )
+    latest_price_report = DailyReport.objects.filter(
+        stock=OuterRef("pk"),
+        price__isnull=False,
+    ).order_by("-as_of_timestamp")
+    latest_objective_report = DailyReport.objects.filter(
+        stock=OuterRef("pk"),
+        price_objective__isnull=False,
+    ).order_by("-as_of_timestamp")
+    latest_upside_report = DailyReport.objects.filter(
+        stock=OuterRef("pk"),
+        upside__isnull=False,
+    ).order_by("-as_of_timestamp")
+    latest_rating_report = (
+        DailyReport.objects.filter(stock=OuterRef("pk"))
+        .exclude(rating="")
+        .order_by("-as_of_timestamp")
+    )
 
     holdings = (
         Stock.objects.filter(holding_snapshots__user=user)
@@ -290,12 +307,24 @@ def _build_holdings_rows(user):
             holding_avg_cost=Subquery(latest_snapshot.values("avg_cost")[:1]),
             holding_as_of=Subquery(latest_snapshot.values("as_of")[:1]),
             latest_report_at=Subquery(latest_report.values("as_of_timestamp")[:1]),
-            latest_price=Subquery(latest_report.values("price")[:1]),
-            latest_price_objective=Subquery(
-                latest_report.values("price_objective")[:1]
+            latest_price=Subquery(latest_price_report.values("price")[:1]),
+            latest_price_as_of=Subquery(
+                latest_price_report.values("as_of_timestamp")[:1]
             ),
-            latest_upside=Subquery(latest_report.values("upside")[:1]),
-            latest_rating=Subquery(latest_report.values("rating")[:1]),
+            latest_price_objective=Subquery(
+                latest_objective_report.values("price_objective")[:1]
+            ),
+            latest_price_objective_as_of=Subquery(
+                latest_objective_report.values("as_of_timestamp")[:1]
+            ),
+            latest_upside=Subquery(latest_upside_report.values("upside")[:1]),
+            latest_upside_as_of=Subquery(
+                latest_upside_report.values("as_of_timestamp")[:1]
+            ),
+            latest_rating=Subquery(latest_rating_report.values("rating")[:1]),
+            latest_rating_as_of=Subquery(
+                latest_rating_report.values("as_of_timestamp")[:1]
+            ),
         )
         .order_by("ticker", "region")
     )
@@ -334,9 +363,13 @@ def _build_holdings_rows(user):
                 "holding_as_of": stock.holding_as_of,
                 "report_at": stock.latest_report_at,
                 "price": price,
+                "price_as_of": stock.latest_price_as_of,
                 "price_objective": objective,
+                "price_objective_as_of": stock.latest_price_objective_as_of,
                 "upside_pct": _to_percent(stock.latest_upside),
+                "upside_as_of": stock.latest_upside_as_of,
                 "rating": stock.latest_rating,
+                "rating_as_of": stock.latest_rating_as_of,
                 "position_value": position_value,
                 "cost_basis_value": cost_basis_value,
                 "objective_value": objective_value,
@@ -350,19 +383,47 @@ def _build_watchlist_rows(user):
     latest_report = DailyReport.objects.filter(stock=OuterRef("stock_id")).order_by(
         "-as_of_timestamp"
     )
+    latest_price_report = DailyReport.objects.filter(
+        stock=OuterRef("stock_id"),
+        price__isnull=False,
+    ).order_by("-as_of_timestamp")
+    latest_objective_report = DailyReport.objects.filter(
+        stock=OuterRef("stock_id"),
+        price_objective__isnull=False,
+    ).order_by("-as_of_timestamp")
+    latest_upside_report = DailyReport.objects.filter(
+        stock=OuterRef("stock_id"),
+        upside__isnull=False,
+    ).order_by("-as_of_timestamp")
+    latest_rating_report = (
+        DailyReport.objects.filter(stock=OuterRef("stock_id"))
+        .exclude(rating="")
+        .order_by("-as_of_timestamp")
+    )
 
     watches = (
         Watch.objects.filter(user=user)
         .select_related("stock")
         .annotate(
             latest_report_at=Subquery(latest_report.values("as_of_timestamp")[:1]),
-            latest_rating=Subquery(latest_report.values("rating")[:1]),
-            latest_price=Subquery(latest_report.values("price")[:1]),
-            latest_price_objective=Subquery(
-                latest_report.values("price_objective")[:1]
+            latest_rating=Subquery(latest_rating_report.values("rating")[:1]),
+            latest_rating_as_of=Subquery(
+                latest_rating_report.values("as_of_timestamp")[:1]
             ),
-            latest_upside=Subquery(latest_report.values("upside")[:1]),
-            latest_analyst_team=Subquery(latest_report.values("analyst_team")[:1]),
+            latest_price=Subquery(latest_price_report.values("price")[:1]),
+            latest_price_as_of=Subquery(
+                latest_price_report.values("as_of_timestamp")[:1]
+            ),
+            latest_price_objective=Subquery(
+                latest_objective_report.values("price_objective")[:1]
+            ),
+            latest_price_objective_as_of=Subquery(
+                latest_objective_report.values("as_of_timestamp")[:1]
+            ),
+            latest_upside=Subquery(latest_upside_report.values("upside")[:1]),
+            latest_upside_as_of=Subquery(
+                latest_upside_report.values("as_of_timestamp")[:1]
+            ),
         )
         .order_by("-latest_report_at", "stock__ticker")
     )
@@ -374,10 +435,13 @@ def _build_watchlist_rows(user):
                 "stock": watch.stock,
                 "report_at": watch.latest_report_at,
                 "rating": watch.latest_rating,
+                "rating_as_of": watch.latest_rating_as_of,
                 "price": watch.latest_price,
+                "price_as_of": watch.latest_price_as_of,
                 "price_objective": watch.latest_price_objective,
+                "price_objective_as_of": watch.latest_price_objective_as_of,
                 "upside_pct": _to_percent(watch.latest_upside),
-                "analyst_team": watch.latest_analyst_team,
+                "upside_as_of": watch.latest_upside_as_of,
             }
         )
     return rows
@@ -419,10 +483,10 @@ def _build_window_summary(window_label, start_at):
         .values("price_objective")[:1]
     )
 
-    upgrade_candidates = (
+    objective_candidates = (
         latest_per_stock.annotate(
             previous_price_objective=previous_price_objective,
-            objective_upgrade=ExpressionWrapper(
+            objective_change=ExpressionWrapper(
                 F("price_objective") - F("previous_price_objective"),
                 output_field=DecimalField(max_digits=20, decimal_places=6),
             ),
@@ -430,13 +494,19 @@ def _build_window_summary(window_label, start_at):
         .filter(
             price_objective__isnull=False,
             previous_price_objective__isnull=False,
-            objective_upgrade__gt=0,
         )
         .select_related("stock")
     )
+
+    objective_candidates = list(objective_candidates)
     largest_upgrade_report = max(
-        upgrade_candidates,
-        key=lambda report: (report.objective_upgrade, report.as_of_timestamp),
+        (report for report in objective_candidates if report.objective_change > 0),
+        key=lambda report: (report.objective_change, report.as_of_timestamp),
+        default=None,
+    )
+    largest_downgrade_report = max(
+        (report for report in objective_candidates if report.objective_change < 0),
+        key=lambda report: (-report.objective_change, report.as_of_timestamp),
         default=None,
     )
 
@@ -470,10 +540,23 @@ def _build_window_summary(window_label, start_at):
                 "company_name": largest_upgrade_report.stock.company_name,
                 "from_objective": largest_upgrade_report.previous_price_objective,
                 "to_objective": largest_upgrade_report.price_objective,
-                "upgrade_amount": largest_upgrade_report.objective_upgrade,
+                "upgrade_amount": largest_upgrade_report.objective_change,
                 "as_of": largest_upgrade_report.as_of_timestamp,
             }
             if largest_upgrade_report
+            else None
+        ),
+        "largest_downgrade": (
+            {
+                "stock": largest_downgrade_report.stock,
+                "company_name": largest_downgrade_report.stock.company_name,
+                "from_objective": largest_downgrade_report.previous_price_objective,
+                "to_objective": largest_downgrade_report.price_objective,
+                "downgrade_amount": largest_downgrade_report.previous_price_objective
+                - largest_downgrade_report.price_objective,
+                "as_of": largest_downgrade_report.as_of_timestamp,
+            }
+            if largest_downgrade_report
             else None
         ),
     }
