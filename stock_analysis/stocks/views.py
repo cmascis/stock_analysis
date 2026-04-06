@@ -29,6 +29,147 @@ def _to_percent(value):
     return value * Decimal("100")
 
 
+def _report_has_value(report, field_name):
+    value = getattr(report, field_name)
+    return value not in (None, "")
+
+
+def _get_latest_report_with_value(reports, field_name):
+    return next(
+        (report for report in reports if _report_has_value(report, field_name)),
+        None,
+    )
+
+
+def _build_stock_detail_chart_data(reports):
+    chart_reports = [
+        report
+        for report in reversed(reports)
+        if report.price is not None or report.price_objective is not None
+    ]
+    chart_price_points = [
+        {
+            "x": int(report.as_of_timestamp.timestamp() * 1000),
+            "y": float(report.price),
+        }
+        for report in chart_reports
+        if report.price is not None
+    ]
+    chart_objective_points = [
+        {
+            "x": int(report.as_of_timestamp.timestamp() * 1000),
+            "y": float(report.price_objective),
+        }
+        for report in chart_reports
+        if report.price_objective is not None
+    ]
+    latest_point_at = max(
+        [point["x"] for point in chart_price_points + chart_objective_points],
+        default=0,
+    )
+    chart_x_max = max(int(timezone.now().timestamp() * 1000), latest_point_at)
+
+    return {
+        "price_points": chart_price_points,
+        "objective_points": chart_objective_points,
+        "x_max": chart_x_max,
+        "has_data": bool(chart_price_points or chart_objective_points),
+        "point_count": len(chart_reports),
+    }
+
+
+def _build_objective_track_record(reports):
+    chronological_reports = list(reversed(reports))
+    objective_reports = [
+        report for report in chronological_reports if report.price_objective is not None
+    ]
+    if not objective_reports:
+        return {
+            "status_label": "No objective history",
+            "status_tone": "neutral",
+            "summary_text": "No price objectives available yet",
+            "pending_text": None,
+            "met_count": 0,
+            "missed_count": 0,
+            "pending_count": 0,
+            "resolved_count": 0,
+        }
+
+    met_count = 0
+    missed_count = 0
+    pending_count = 0
+
+    for index, objective_report in enumerate(objective_reports):
+        next_objective_report = (
+            objective_reports[index + 1] if index + 1 < len(objective_reports) else None
+        )
+        price_reports_in_window = [
+            report
+            for report in chronological_reports
+            if report.price is not None
+            and report.as_of_timestamp > objective_report.as_of_timestamp
+            and (
+                next_objective_report is None
+                or report.as_of_timestamp < next_objective_report.as_of_timestamp
+            )
+        ]
+
+        if next_objective_report is None:
+            pending_count += 1
+        elif any(
+            report.price >= objective_report.price_objective
+            for report in price_reports_in_window
+        ):
+            met_count += 1
+        elif price_reports_in_window:
+            missed_count += 1
+        else:
+            pending_count += 1
+
+    resolved_count = met_count + missed_count
+    if resolved_count == 0:
+        return {
+            "status_label": "Pending",
+            "status_tone": "neutral",
+            "summary_text": "No resolved objectives yet",
+            "pending_text": (
+                f"{pending_count} pending objective{'' if pending_count == 1 else 's'}"
+            ),
+            "met_count": met_count,
+            "missed_count": missed_count,
+            "pending_count": pending_count,
+            "resolved_count": resolved_count,
+        }
+
+    if met_count * 3 >= resolved_count * 2:
+        status_label = "Meeting objectives"
+        status_tone = "positive"
+    elif met_count * 3 >= resolved_count:
+        status_label = "Mixed follow-through"
+        status_tone = "neutral"
+    else:
+        status_label = "Falling short"
+        status_tone = "negative"
+
+    return {
+        "status_label": status_label,
+        "status_tone": status_tone,
+        "summary_text": (
+            f"{met_count} of {resolved_count} resolved objective"
+            f"{'' if resolved_count == 1 else 's'} hit"
+        ),
+        "pending_text": (
+            f"{pending_count} pending objective{'' if pending_count == 1 else 's'}"
+            if pending_count
+            else None
+        ),
+        "met_count": met_count,
+        "missed_count": missed_count,
+        "pending_count": pending_count,
+        "resolved_count": resolved_count,
+    }
+
+
 def _build_holdings_rows(user):
     latest_snapshot = HoldingSnapshot.objects.filter(
         user=user,
@@ -398,51 +539,57 @@ def stock_detail(request, stock_id):
         .order_by("-as_of_timestamp")
     )
 
-    chart_reports = [
-        report
-        for report in reversed(reports)
-        if report.price is not None or report.price_objective is not None
+    latest_price_report = _get_latest_report_with_value(reports, "price")
+    latest_objective_report = _get_latest_report_with_value(reports, "price_objective")
+    latest_rating_report = _get_latest_report_with_value(reports, "rating")
+    objective_reports = [
+        report for report in reports if report.price_objective is not None
     ]
-    chart_labels = [
-        report.as_of_timestamp.strftime("%Y-%m-%d") for report in chart_reports
-    ]
-    chart_price_values = [
-        float(report.price) if report.price is not None else None
-        for report in chart_reports
-    ]
-    chart_objective_values = [
-        float(report.price_objective) if report.price_objective is not None else None
-        for report in chart_reports
-    ]
-    chart_has_data = any(
-        value is not None for value in (chart_price_values + chart_objective_values)
+    latest_objective_change_report = (
+        objective_reports[0] if len(objective_reports) >= 2 else None
     )
-
-    latest_report = reports[0] if reports else None
-    previous_report = reports[1] if len(reports) > 1 else None
+    previous_objective_report = (
+        objective_reports[1] if len(objective_reports) >= 2 else None
+    )
     objective_change = None
-    if (
-        latest_report
-        and previous_report
-        and latest_report.price_objective is not None
-        and previous_report.price_objective is not None
-    ):
+    if latest_objective_change_report and previous_objective_report:
         objective_change = (
-            latest_report.price_objective - previous_report.price_objective
+            latest_objective_change_report.price_objective
+            - previous_objective_report.price_objective
         )
+
+    chart_data = _build_stock_detail_chart_data(reports)
+    objective_track_record = _build_objective_track_record(reports)
 
     context = {
         "stock": stock,
         "reports": reports,
         "report_count": len(reports),
-        "latest_report": latest_report,
-        "latest_upside_pct": _to_percent(latest_report.upside)
-        if latest_report
-        else None,
+        "latest_price": latest_price_report.price if latest_price_report else None,
+        "latest_price_as_of": (
+            latest_price_report.as_of_timestamp if latest_price_report else None
+        ),
+        "latest_price_objective": (
+            latest_objective_report.price_objective if latest_objective_report else None
+        ),
+        "latest_price_objective_as_of": (
+            latest_objective_report.as_of_timestamp if latest_objective_report else None
+        ),
+        "latest_rating": latest_rating_report.rating if latest_rating_report else "",
+        "latest_rating_as_of": (
+            latest_rating_report.as_of_timestamp if latest_rating_report else None
+        ),
         "objective_change": objective_change,
-        "chart_labels": chart_labels,
-        "chart_price_values": chart_price_values,
-        "chart_objective_values": chart_objective_values,
-        "chart_has_data": chart_has_data,
+        "objective_change_as_of": (
+            latest_objective_change_report.as_of_timestamp
+            if latest_objective_change_report
+            else None
+        ),
+        "objective_track_record": objective_track_record,
+        "chart_price_points": chart_data["price_points"],
+        "chart_objective_points": chart_data["objective_points"],
+        "chart_x_max": chart_data["x_max"],
+        "chart_has_data": chart_data["has_data"],
+        "chart_data_point_count": chart_data["point_count"],
     }
     return render(request, "stocks/stock_detail.html", context)
