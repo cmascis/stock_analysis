@@ -28,7 +28,7 @@ Rule priority: if any instruction is ambiguous, default to the stricter interpre
 - `stock_analysis/stock_analysis/settings.py`: runtime configuration and environment variables
 - `stock_analysis/stock_analysis/urls.py`: root routing
 - `stock_analysis/stocks/urls.py`: main product routes
-- `stock_analysis/stocks/views.py`: dashboard, search, advanced search, stock detail
+- `stock_analysis/stocks/views.py`: dashboard, search suggestions, stock detail
 - `stock_analysis/investor/views.py`: signup flow
 
 ## Core Commands
@@ -52,7 +52,7 @@ uv run python scripts/uv_ci_local_validation.py
 - `HoldingSnapshot` is append-only and unique per `(user, stock, as_of)`.
 - `Watch` is unique per `(user, stock)`.
 - `InvestorProfile` is auto-created on user creation via `investor.signals`.
-- Advanced search uses latest non-null value per metric, not a single shared "latest report row" for every field.
+- Dashboard holdings/watchlist use latest non-null report values per metric, not a single shared "latest report row" for every field.
 - `import_reports` skips existing duplicate `(stock, as_of_timestamp)` reports rather than updating them.
 
 ## Common Edit Surfaces

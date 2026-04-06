@@ -169,14 +169,10 @@ Configured in `stock_analysis/stock_analysis/settings.py`.
 4. Update importer (`import_reports.py`) if field comes from source JSON.
 5. Update views/templates/tests where displayed or filtered.
 
-### Adjust advanced search behavior
+### Adjust header search behavior
 
-1. Update constants/helpers in `stock_analysis/stocks/views.py`:
-   - `NUMERIC_FILTER_CONFIG`
-   - `SORT_FIELD_CHOICES`
-   - `SORT_FIELD_MAP`
-   - ordering/filter helpers
-2. Update `stock_analysis/stocks/templates/stocks/advanced_search.html`.
+1. Update `stock_analysis/stocks/views.py` (`stock_search_suggestions`) if query or ranking behavior changes.
+2. Update the inline search UI in `stock_analysis/stocks/templates/base.html`.
 3. Update tests in `stock_analysis/stocks/tests.py`.
 
 ### Adjust dashboard cards
