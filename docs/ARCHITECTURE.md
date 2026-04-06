@@ -6,7 +6,7 @@
 - Architecture style: single-project monolith, function-view-heavy, with most business logic in `stocks/views.py`.
 - No active REST API namespace or separate service layer in the current implementation.
 - Apps:
-  - `stocks`: stock universe, analyst reports, advanced search, dashboards, stock detail page.
+  - `stocks`: stock universe, analyst reports, dashboards, stock detail page.
   - `investor`: profile lifecycle, watchlist, holding snapshots, signup workflow.
 - Root routing:
   - `/admin/` -> Django admin
@@ -76,17 +76,6 @@
   - ranked with `Case/When` for exact/startswith behavior.
 - Returns up to 8 suggestions with direct stock detail URLs.
 
-### Advanced Search (`advanced_stock_search`)
-
-- Builds per-stock "latest metric" view using annotated subqueries.
-- Supports:
-  - text filters (`q`, `ticker`, `company_name`, `region`, `currency_code`)
-  - numeric min/max filters for price, objective, upside %, market cap, average daily value
-  - up to 3-level sort priority
-- Result set:
-  - paginated 50/page
-  - stable tie-break ordering via ticker and region.
-
 ### Stock Detail (`stock_detail`)
 
 - Loads full report timeline for one stock.
@@ -118,7 +107,6 @@
 - There is no frontend build step; JavaScript is inline in templates and CSS lives in `stocks/static/stocks/theme.css`.
 - Feature templates:
   - `stocks/home.html`
-  - `stocks/advanced_search.html`
   - `stocks/stock_detail.html`
   - auth templates in `investor/templates/registration/`
 - Styling:
@@ -130,7 +118,6 @@
   - home dashboard context
   - stock detail rendering
   - search endpoint behavior
-  - advanced search ordering/filtering behavior
 - `investor/tests.py`
   - signup required fields
   - login/logout flow

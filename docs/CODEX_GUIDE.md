@@ -28,9 +28,9 @@ This file is optimized for future Codex agents. Read this first for fast orienta
   - `stock_analysis/stocks/static/stocks/theme.css`
   - tests in `stock_analysis/stocks/tests.py`
 
-- Search or ranking behavior:
-  - `stock_analysis/stocks/views.py` (`advanced_stock_search`, helper functions)
-  - `stock_analysis/stocks/templates/stocks/advanced_search.html`
+- Header search behavior:
+  - `stock_analysis/stocks/views.py` (`stock_search_suggestions`)
+  - `stock_analysis/stocks/templates/base.html`
   - tests in `stock_analysis/stocks/tests.py`
 
 - Stock detail behavior/charts:
@@ -59,12 +59,12 @@ This file is optimized for future Codex agents. Read this first for fast orienta
 - `InvestorProfile` is auto-created on user creation via `investor.signals`.
 - `HoldingSnapshot` is append-only by design and unique per `(user, stock, as_of)`.
 - `Watch` is unique per `(user, stock)`.
-- Advanced search intentionally uses latest available non-null value per metric (not always the same report row per field).
+- Dashboard holdings/watchlist intentionally use latest available non-null values per metric (not always the same report row per field).
 - `import_reports` creates missing `Stock` rows and skips duplicate `(stock, as_of_timestamp)` reports instead of updating them.
 
 ## Query/Performance Patterns Already in Use
 
-- `Subquery + OuterRef` for latest per-stock metrics in dashboard and advanced search.
+- `Subquery + OuterRef` for latest per-stock metrics in dashboard views.
 - `select_related`/`prefetch_related` on detail and admin flows.
 - Deterministic ordering and tie-breakers (`ticker`, `region`) to keep UI stable.
 - Server-rendered templates with small inline JavaScript helpers rather than a separate frontend app.
