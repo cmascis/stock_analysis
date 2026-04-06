@@ -4,11 +4,21 @@ This file is optimized for future Codex agents. Read this first for fast orienta
 
 ## 60-Second Overview
 
-- This is a Django app with two first-party apps: `stocks` and `investor`.
+- This is a server-rendered Django monolith with two first-party apps: `stocks` and `investor`.
 - The home page is both marketing (anonymous users) and dashboard (authenticated users).
 - Most heavy data shaping happens in `stocks/views.py` through annotations/subqueries.
 - The database is PostgreSQL-only in current settings.
 - Analyst report ingestion is done through `import_reports` from local JSON files.
+- There is no active REST API namespace or separate service layer in the current codebase.
+
+## Key Entry Points
+
+- `stock_analysis/manage.py`
+- `stock_analysis/stock_analysis/settings.py`
+- `stock_analysis/stock_analysis/urls.py`
+- `stock_analysis/stocks/urls.py`
+- `stock_analysis/stocks/views.py`
+- `stock_analysis/investor/views.py`
 
 ## Where to Start by Task
 
@@ -46,15 +56,18 @@ This file is optimized for future Codex agents. Read this first for fast orienta
 - `Stock.ticker`, `Stock.region`, and `Stock.currency_code` are normalized to uppercase.
 - `DailyReport.rating` is normalized to uppercase with internal whitespace replaced by underscores.
 - A report is unique per `(stock, as_of_timestamp)` (`uniq_report_as_of_timestamp_per_stock`).
+- `InvestorProfile` is auto-created on user creation via `investor.signals`.
 - `HoldingSnapshot` is append-only by design and unique per `(user, stock, as_of)`.
 - `Watch` is unique per `(user, stock)`.
 - Advanced search intentionally uses latest available non-null value per metric (not always the same report row per field).
+- `import_reports` creates missing `Stock` rows and skips duplicate `(stock, as_of_timestamp)` reports instead of updating them.
 
 ## Query/Performance Patterns Already in Use
 
 - `Subquery + OuterRef` for latest per-stock metrics in dashboard and advanced search.
 - `select_related`/`prefetch_related` on detail and admin flows.
 - Deterministic ordering and tie-breakers (`ticker`, `region`) to keep UI stable.
+- Server-rendered templates with small inline JavaScript helpers rather than a separate frontend app.
 
 Follow existing patterns before introducing new query shapes.
 
@@ -67,6 +80,9 @@ Follow existing patterns before introducing new query shapes.
   - `https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js`
 - `import_reports` reads from `stock_analysis/company_jsons/` and skips malformed records.
 - `import_reports` uses `get_or_create` for reports; existing `(stock, as_of_timestamp)` rows are skipped, not updated.
+- The repository does not currently ship `mysite_data.json`; fixture load/dump commands are optional local workflow only.
+- `djangorestframework` is installed but there is no active DRF API surface in the current tree.
+- `django-debug-toolbar` is present only as commented-out config in `settings.py` and `urls.py`.
 
 ## Change Checklist
 
@@ -93,10 +109,12 @@ When changing auth behavior:
 docker compose up -d db
 uv sync
 uv tool run prek install --hook-type pre-commit --hook-type pre-push --overwrite
+uv run python stock_analysis/manage.py check
 uv run python stock_analysis/manage.py migrate
 uv run python stock_analysis/manage.py runserver
 uv run python stock_analysis/manage.py test stocks investor
 uv run python stock_analysis/manage.py import_reports --dry-run
+uv run python stock_analysis/manage.py makemigrations --check --dry-run
 uv tool run prek run --all-files
 uv run python scripts/uv_ci_local_validation.py
 ```

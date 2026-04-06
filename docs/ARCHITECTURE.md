@@ -3,6 +3,8 @@
 ## Application Shape
 
 - Framework: Django, server-rendered templates.
+- Architecture style: single-project monolith, function-view-heavy, with most business logic in `stocks/views.py`.
+- No active REST API namespace or separate service layer in the current implementation.
 - Apps:
   - `stocks`: stock universe, analyst reports, advanced search, dashboards, stock detail page.
   - `investor`: profile lifecycle, watchlist, holding snapshots, signup workflow.
@@ -11,6 +13,10 @@
   - `/accounts/` -> Django auth URLs
   - `/accounts/signup/` -> custom signup
   - `/` and stock routes -> `stocks.urls`
+- Supporting runtime surfaces:
+  - Django admin for data inspection and editing
+  - `import_reports` management command for batch report ingestion
+  - `post_save` signal that auto-creates `InvestorProfile`
 
 ## Data Model
 
@@ -55,6 +61,13 @@
 - Heavy lifting:
   - `Subquery`, `OuterRef`, aggregate + derived Decimal calculations.
 
+### Signup (`signup`)
+
+- Uses a custom `InvestorSignupForm`.
+- Requires `username`, `email`, `first_name`, `last_name`, `password1`, and `password2`.
+- Logs the user in after creation and redirects to `home`.
+- `InvestorProfile` is then ensured by the `post_save` signal on the user model.
+
 ### Search (`stock_search_suggestions`)
 
 - JSON endpoint powering header search popover.
@@ -94,6 +107,7 @@
   - create stock if missing
   - create report if not existing, then create takeaways and EPS rows
   - skip duplicate report timestamps for same stock
+  - skip malformed records with stderr output rather than aborting the whole import
 
 ## Frontend Layer
 
@@ -101,6 +115,7 @@
   - global shell
   - auth nav
   - live stock search UI script
+- There is no frontend build step; JavaScript is inline in templates and CSS lives in `stocks/static/stocks/theme.css`.
 - Feature templates:
   - `stocks/home.html`
   - `stocks/advanced_search.html`
@@ -127,3 +142,4 @@
   - DB name/user/password default to `stock_analysis`
   - host default `localhost`, port `5432`
 - Docker Compose provides local Postgres container only.
+- `djangorestframework` is installed as a dependency, but no active DRF endpoints or serializers are wired into runtime URLs.
