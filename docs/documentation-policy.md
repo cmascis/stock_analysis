@@ -27,6 +27,8 @@ Net-new knowledge includes:
 - Prefer updating an existing canonical doc over creating duplicates.
 - Add references in `AGENTS.md` when introducing a new canonical doc.
 - Avoid stale command variants; prefer `uv run` / `uv tool run`.
+- Correct documentation drift discovered during investigations even if no code changes are made.
+- If a workflow depends on a local-only artifact that may not exist in the repository, label it clearly as optional or user-supplied.
 - Never document secrets, credentials, or personal sensitive data.
 
 ## Feature-hygiene policy

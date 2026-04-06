@@ -8,6 +8,7 @@ For the full branch/PR lifecycle, use `docs/branching-strategy.md` section `Exac
 - Use `uv` for everything possible.
   - Project/runtime commands: `uv run ...`
   - External tools: `uv tool run ...`
+- There is no active Node/npm toolchain in the current repository.
 - Do not activate the virtual environment manually.
 - Do not call `.venv/bin/python`, `pip`, or `python -m pip` directly for project workflows.
 
@@ -51,11 +52,16 @@ Validation notes:
 - Run `uv tool run prek run --all-files` from a topic branch.
 - For CI-style local validation from any branch (including `main`), run:
   - `uv run python scripts/uv_ci_local_validation.py`
+- Use targeted commands when possible, but do not skip `check`, migration drift validation, or relevant tests for real changes.
 
 ## Hook and CI alignment
 
 - Hooks are managed by `prek` via `.pre-commit-config.yaml`.
 - Local branch-policy enforcement runs in pre-commit and pre-push stages via `scripts/check-branch-policy.sh`.
+- Helper wrappers in `scripts/` mirror common tool invocations:
+  - `uv_ci_local_validation.py`
+  - `uv_prek_all.py`
+  - `uv_prek_prepush.py`
 - CI workflow (`.github/workflows/ci.yml`) uses:
   - `uv sync --locked`
   - `uv run python stock_analysis/manage.py check`
@@ -72,5 +78,6 @@ For each feature PR, review and update as needed:
 - Test suites for behavior coverage.
 - `.run/` for new common run/validation workflows.
 - `scripts/` for repeatable commands that should not be manual.
+- `README.md`, `AGENTS.md`, and `docs/` when workflows or architecture knowledge changed.
 
 If no updates are needed in a category, note that in the PR.

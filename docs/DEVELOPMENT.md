@@ -44,6 +44,7 @@ Note:
 
 - Running without app labels can return `Found 0 test(s)` in this project layout.
 - Tests require a running Postgres instance.
+- Run `uv run python stock_analysis/manage.py check` and `uv run python stock_analysis/manage.py makemigrations --check --dry-run` alongside tests before closing implementation work.
 
 ## Guardrails and CI
 
@@ -98,9 +99,13 @@ scripts/apply_github_guardrails.sh --repo cmascis/stock_analysis --branch main -
 
 ### Load fixture snapshot
 
+If you already have an exported snapshot locally:
+
 ```bash
 uv run python stock_analysis/manage.py loaddata mysite_data.json
 ```
+
+The repository does not currently include a committed `mysite_data.json` file.
 
 ### Export fixture snapshot
 
@@ -138,6 +143,13 @@ Configured in `stock_analysis/stock_analysis/settings.py`.
 - `ALLOWED_HOSTS` comma-separated (default `localhost,127.0.0.1,0.0.0.0`)
 
 ## Common Task Recipes
+
+### Update documentation after new findings
+
+1. Put durable agent guidance in `AGENTS.md`.
+2. Put topic-specific detail in the smallest canonical doc under `docs/`.
+3. Correct stale command examples or missing file references immediately when discovered.
+4. Update `README.md` too if the change affects local setup or day-to-day workflows.
 
 ### Add a field to `DailyReport`
 
@@ -181,3 +193,7 @@ Configured in `stock_analysis/stock_analysis/settings.py`.
   - `stock_analysis/investor/admin.py`
 
 Use admin for quick data verification during development.
+
+## Run Configurations
+
+The `.run/` directory includes IDE run configs for common `uv` workflows such as `runserver`, `migrate`, `makemigrations`, `import_reports`, fixture load/dump, `prek`, and local CI validation.
