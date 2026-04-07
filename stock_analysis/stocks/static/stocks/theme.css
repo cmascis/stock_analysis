@@ -309,6 +309,11 @@ h2 {
     max-width: 68ch;
 }
 
+.lead strong {
+    color: #123828;
+    font-weight: 800;
+}
+
 .cta-row {
     display: flex;
     flex-wrap: wrap;
@@ -345,6 +350,31 @@ h2 {
     font-size: clamp(1.5rem, 3.5vw, 1.9rem);
     margin-top: 10px;
     word-break: break-word;
+}
+
+.metric-value-textual {
+    font-size: clamp(1.08rem, 2.8vw, 1.4rem);
+    line-height: 1.2;
+}
+
+.metric-value-positive {
+    color: #0f6e58;
+}
+
+.metric-value-neutral {
+    color: #7b5a1c;
+}
+
+.metric-value-negative {
+    color: #9b2614;
+}
+
+.metric-support {
+    color: var(--muted);
+    display: block;
+    font-size: 0.8rem;
+    line-height: 1.45;
+    margin-top: 8px;
 }
 
 .panel-grid {

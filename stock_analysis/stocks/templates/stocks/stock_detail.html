@@ -7,7 +7,7 @@
     <section class="hero reveal">
         <p class="eyebrow">Stock Detail</p>
         <h1>{{ stock.ticker }} {{ stock.region }}</h1>
-        <p class="lead">{{ stock.company_name }}</p>
+        <p class="lead"><strong>{{ stock.company_name }}{% if latest_rating_display %} | {{ latest_rating_display }}{% endif %}</strong></p>
 
         <div class="metrics-grid">
             <article class="metric-card">
@@ -16,11 +16,13 @@
             </article>
             <article class="metric-card">
                 <span class="metric-label">Latest Price</span>
-                <span class="metric-value">{% if latest_report and latest_report.price is not None %}${{ latest_report.price|floatformat:2|intcomma }}{% else %}-{% endif %}</span>
+                <span class="metric-value">{% if latest_price is not None %}${{ latest_price|floatformat:2|intcomma }}{% else %}-{% endif %}</span>
+                {% if latest_price_as_of %}<small class="as-of">{{ latest_price_as_of|date:"M j, Y" }}</small>{% endif %}
             </article>
             <article class="metric-card">
                 <span class="metric-label">Latest Objective</span>
-                <span class="metric-value">{% if latest_report and latest_report.price_objective is not None %}${{ latest_report.price_objective|floatformat:2|intcomma }}{% else %}-{% endif %}</span>
+                <span class="metric-value">{% if latest_price_objective is not None %}${{ latest_price_objective|floatformat:2|intcomma }}{% else %}-{% endif %}</span>
+                {% if latest_price_objective_as_of %}<small class="as-of">{{ latest_price_objective_as_of|date:"M j, Y" }}</small>{% endif %}
             </article>
             <article class="metric-card">
                 <span class="metric-label">Objective Change</span>
@@ -31,6 +33,35 @@
                         -
                     {% endif %}
                 </span>
+                {% if previous_different_objective is not None %}
+                    <small class="metric-support {% if objective_change is not None and objective_change < 0 %}neg{% endif %}">
+                        from ${{ previous_different_objective|floatformat:2|intcomma }}{% if objective_change_pct is not None %}: {% if objective_change_pct > 0 %}+{% endif %}{{ objective_change_pct|floatformat:2|intcomma }}%{% endif %}
+                    </small>
+                {% endif %}
+                {% if objective_change_as_of %}<small class="as-of">{{ objective_change_as_of|date:"M j, Y" }}</small>{% endif %}
+            </article>
+            <article class="metric-card">
+                <span class="metric-label">Latest Upside</span>
+                <span class="metric-value">{% if latest_upside_pct is not None %}{{ latest_upside_pct|floatformat:2|intcomma }}%{% else %}-{% endif %}</span>
+                {% if latest_upside_as_of %}<small class="as-of">{{ latest_upside_as_of|date:"M j, Y" }}</small>{% endif %}
+            </article>
+            <article class="metric-card">
+                <span class="metric-label">Latest Rating</span>
+                <span class="metric-value metric-value-textual">{% if latest_rating_display %}{{ latest_rating_display }}{% else %}-{% endif %}</span>
+                <small class="metric-support {% if rating_change_tone == 'negative' %}neg{% endif %}">{{ rating_change_summary }}</small>
+                {% if latest_rating_as_of %}<small class="as-of">{{ latest_rating_as_of|date:"M j, Y" }}</small>{% endif %}
+            </article>
+            <article class="metric-card">
+                <span class="metric-label">Objectives Cleared</span>
+                <span class="metric-value">
+                    {% if objective_coverage.percentage is not None %}
+                        {{ objective_coverage.percentage|floatformat:"-2"|intcomma }}%
+                    {% else %}
+                        -
+                    {% endif %}
+                </span>
+                <small class="metric-support">{{ objective_coverage.summary_text }}</small>
+                {% if objective_coverage.as_of %}<small class="as-of">{{ objective_coverage.as_of|date:"M j, Y" }}</small>{% endif %}
             </article>
         </div>
     </section>
@@ -38,15 +69,17 @@
     <section class="dashboard-section reveal delay-1">
         <div class="section-head">
             <h2>Price and Price Objective Over Time</h2>
-            <span class="subtle">{{ chart_labels|length|intcomma }} data point{{ chart_labels|length|pluralize }}</span>
+            <span class="subtle">{{ chart_data_point_count|intcomma }} data point{{ chart_data_point_count|pluralize }}</span>
         </div>
         {% if chart_has_data %}
             <div class="chart-wrap">
                 <canvas id="objective-chart" class="objective-chart"></canvas>
             </div>
-            {{ chart_labels|json_script:"objective-labels" }}
-            {{ chart_price_values|json_script:"price-values" }}
-            {{ chart_objective_values|json_script:"objective-values" }}
+            {{ chart_price_points|json_script:"price-points" }}
+            {{ chart_price_continuation_points|json_script:"price-continuation-points" }}
+            {{ chart_objective_points|json_script:"objective-points" }}
+            {{ chart_objective_continuation_points|json_script:"objective-continuation-points" }}
+            {{ chart_x_max|json_script:"chart-x-max" }}
         {% else %}
             <p class="empty-note">No price or price objective values are available yet for this stock.</p>
         {% endif %}
@@ -152,48 +185,95 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
     <script>
     (() => {
-      const labelsScript = document.getElementById("objective-labels");
-      const priceScript = document.getElementById("price-values");
-      const objectiveScript = document.getElementById("objective-values");
+      const priceScript = document.getElementById("price-points");
+      const priceContinuationScript = document.getElementById("price-continuation-points");
+      const objectiveScript = document.getElementById("objective-points");
+      const objectiveContinuationScript = document.getElementById("objective-continuation-points");
+      const xMaxScript = document.getElementById("chart-x-max");
       const canvas = document.getElementById("objective-chart");
 
-      if (labelsScript && priceScript && objectiveScript && canvas && window.Chart) {
-        const labels = JSON.parse(labelsScript.textContent);
-        const priceValues = JSON.parse(priceScript.textContent);
-        const objectiveValues = JSON.parse(objectiveScript.textContent);
-        const formatter = new Intl.NumberFormat("en-US", {
+      if (
+        priceScript &&
+        priceContinuationScript &&
+        objectiveScript &&
+        objectiveContinuationScript &&
+        xMaxScript &&
+        canvas &&
+        window.Chart
+      ) {
+        const pricePoints = JSON.parse(priceScript.textContent);
+        const priceContinuationPoints = JSON.parse(priceContinuationScript.textContent);
+        const objectivePoints = JSON.parse(objectiveScript.textContent);
+        const objectiveContinuationPoints = JSON.parse(objectiveContinuationScript.textContent);
+        const xMax = JSON.parse(xMaxScript.textContent);
+        const currencyFormatter = new Intl.NumberFormat("en-US", {
           minimumFractionDigits: 2,
           maximumFractionDigits: 2,
         });
+        const dateFormatter = new Intl.DateTimeFormat("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        });
+        const datasets = [];
+
+        if (pricePoints.length) {
+          datasets.push({
+            label: "Price",
+            data: pricePoints,
+            borderColor: "#0f6e58",
+            backgroundColor: "rgba(15, 110, 88, 0.18)",
+            pointBackgroundColor: "#0f6e58",
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            spanGaps: true,
+            tension: 0.25,
+          });
+        }
+        if (priceContinuationPoints.length) {
+          datasets.push({
+            label: "Price",
+            data: priceContinuationPoints,
+            borderColor: "#0f6e58",
+            borderDash: [7, 6],
+            pointRadius: 0,
+            pointHoverRadius: 0,
+            spanGaps: true,
+            tension: 0,
+            isContinuation: true,
+          });
+        }
+        if (objectivePoints.length) {
+          datasets.push({
+            label: "Price Objective",
+            data: objectivePoints,
+            borderColor: "#f08b24",
+            backgroundColor: "rgba(240, 139, 36, 0.16)",
+            pointBackgroundColor: "#f08b24",
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            spanGaps: true,
+            tension: 0.25,
+          });
+        }
+        if (objectiveContinuationPoints.length) {
+          datasets.push({
+            label: "Price Objective",
+            data: objectiveContinuationPoints,
+            borderColor: "#f08b24",
+            borderDash: [7, 6],
+            pointRadius: 0,
+            pointHoverRadius: 0,
+            spanGaps: true,
+            tension: 0,
+            isContinuation: true,
+          });
+        }
 
         new Chart(canvas.getContext("2d"), {
           type: "line",
           data: {
-            labels,
-            datasets: [
-              {
-                label: "Price",
-                data: priceValues,
-                borderColor: "#0f6e58",
-                backgroundColor: "rgba(15, 110, 88, 0.18)",
-                pointBackgroundColor: "#0f6e58",
-                pointRadius: 3,
-                pointHoverRadius: 5,
-                spanGaps: true,
-                tension: 0.25,
-              },
-              {
-                label: "Price Objective",
-                data: objectiveValues,
-                borderColor: "#f08b24",
-                backgroundColor: "rgba(240, 139, 36, 0.16)",
-                pointBackgroundColor: "#f08b24",
-                pointRadius: 3,
-                pointHoverRadius: 5,
-                spanGaps: true,
-                tension: 0.25,
-              },
-            ],
+            datasets,
           },
           options: {
             responsive: true,
@@ -206,17 +286,23 @@
               legend: {
                 display: true,
                 labels: {
+                  filter: (legendItem, data) =>
+                    !data.datasets[legendItem.datasetIndex].isContinuation,
                   usePointStyle: true,
                 },
               },
               tooltip: {
+                filter: (ctx) => !ctx.dataset.isContinuation,
                 callbacks: {
-                  title: (items) => (items.length ? items[0].label : ""),
+                  title: (items) =>
+                    items.length
+                      ? dateFormatter.format(new Date(items[0].parsed.x))
+                      : "",
                   label: (ctx) => {
-                    if (ctx.raw === null || ctx.raw === undefined) {
+                    if (ctx.parsed.y === null || ctx.parsed.y === undefined) {
                       return `${ctx.dataset.label}: -`;
                     }
-                    return `${ctx.dataset.label}: $${formatter.format(ctx.raw)}`;
+                    return `${ctx.dataset.label}: $${currencyFormatter.format(ctx.parsed.y)}`;
                   },
                 },
               },
@@ -224,13 +310,17 @@
             scales: {
               y: {
                 ticks: {
-                  callback: (value) => `$${formatter.format(value)}`,
+                  callback: (value) => `$${currencyFormatter.format(value)}`,
                 },
               },
               x: {
+                type: "linear",
+                max: xMax,
                 ticks: {
                   autoSkip: true,
                   maxTicksLimit: 8,
+                  callback: (value) =>
+                    dateFormatter.format(new Date(Number(value))),
                 },
               },
             },
