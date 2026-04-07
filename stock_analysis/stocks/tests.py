@@ -262,6 +262,8 @@ class HomeViewTests(TestCase):
         self.assertContains(response, "objective-chart")
         self.assertContains(response, "data-report-select")
         self.assertContains(response, "price-points")
+        self.assertContains(response, "price-continuation-points")
+        self.assertContains(response, "objective-continuation-points")
 
     def test_stock_detail_uses_latest_available_metric_values_per_field(self):
         stock = Stock.objects.create(
@@ -274,7 +276,8 @@ class HomeViewTests(TestCase):
             as_of_timestamp=now - timedelta(days=4),
             price=Decimal("91.00"),
             price_objective=Decimal("120.00"),
-            rating="HOLD",
+            upside=Decimal("0.0500"),
+            rating="NEUTRAL",
         )
         latest_price_report = DailyReport.objects.create(
             stock=stock,
@@ -288,6 +291,7 @@ class HomeViewTests(TestCase):
             as_of_timestamp=now - timedelta(hours=12),
             price=None,
             price_objective=Decimal("135.50"),
+            upside=Decimal("0.1250"),
             rating="BUY",
         )
 
@@ -305,17 +309,32 @@ class HomeViewTests(TestCase):
             response.context["latest_price_objective_as_of"],
             latest_objective_report.as_of_timestamp,
         )
+        self.assertEqual(response.context["latest_upside_pct"], Decimal("12.500000"))
+        self.assertEqual(
+            response.context["latest_upside_as_of"],
+            latest_objective_report.as_of_timestamp,
+        )
         self.assertEqual(response.context["latest_rating"], "BUY")
+        self.assertEqual(response.context["latest_rating_display"], "Buy")
         self.assertEqual(
             response.context["latest_rating_as_of"],
             latest_objective_report.as_of_timestamp,
         )
+        self.assertEqual(response.context["previous_rating"], "NEUTRAL")
+        self.assertEqual(response.context["previous_rating_display"], "Neutral")
+        self.assertEqual(
+            response.context["rating_change_summary"], "Upgraded from Neutral"
+        )
         self.assertContains(response, "Latest Rating")
+        self.assertContains(response, "Latest Upside")
         self.assertContains(response, "$103.25")
         self.assertContains(response, "$135.50")
+        self.assertContains(response, "12.50%")
         self.assertContains(response, "Buy")
+        self.assertContains(response, "<strong>Acme Holdings | Buy</strong>", html=True)
+        self.assertContains(response, "Upgraded from Neutral")
 
-    def test_stock_detail_objective_change_uses_latest_two_objective_reports(self):
+    def test_stock_detail_objective_change_uses_latest_different_objective(self):
         stock = Stock.objects.create(
             ticker="GOOG", region="US", company_name="Alphabet Inc."
         )
@@ -329,8 +348,7 @@ class HomeViewTests(TestCase):
         DailyReport.objects.create(
             stock=stock,
             as_of_timestamp=now - timedelta(days=2),
-            price=Decimal("108.00"),
-            rating="HOLD",
+            price_objective=Decimal("130.00"),
         )
         latest_objective_report = DailyReport.objects.create(
             stock=stock,
@@ -348,14 +366,126 @@ class HomeViewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["objective_change"], Decimal("30.000000"))
+        self.assertEqual(response.context["objective_change_pct"], Decimal("30.00"))
+        self.assertEqual(
+            response.context["previous_different_objective"], Decimal("100.000000")
+        )
         self.assertEqual(
             response.context["objective_change_as_of"],
             latest_objective_report.as_of_timestamp,
         )
         self.assertContains(response, "Objective Change")
         self.assertContains(response, "+$30.00")
+        self.assertContains(response, "from $100.00: +30.00%")
 
-    def test_stock_detail_chart_extends_to_current_date_without_fabricated_points(self):
+    def test_stock_detail_objective_coverage_uses_latest_price_against_distinct_objectives(
+        self,
+    ):
+        stock = Stock.objects.create(
+            ticker="NFLX", region="US", company_name="Netflix Inc."
+        )
+        now = timezone.now()
+
+        DailyReport.objects.create(
+            stock=stock,
+            as_of_timestamp=now - timedelta(days=5),
+            price_objective=Decimal("100.00"),
+        )
+        DailyReport.objects.create(
+            stock=stock,
+            as_of_timestamp=now - timedelta(days=4),
+            price_objective=Decimal("100.00"),
+        )
+        DailyReport.objects.create(
+            stock=stock,
+            as_of_timestamp=now - timedelta(days=3),
+            price_objective=Decimal("120.00"),
+        )
+        DailyReport.objects.create(
+            stock=stock,
+            as_of_timestamp=now - timedelta(days=2),
+            price_objective=Decimal("150.00"),
+        )
+        latest_price_report = DailyReport.objects.create(
+            stock=stock,
+            as_of_timestamp=now - timedelta(days=1),
+            price=Decimal("130.00"),
+        )
+
+        response = self.client.get(reverse("stock_detail", args=[stock.id]))
+
+        self.assertEqual(response.status_code, 200)
+        objective_coverage = response.context["objective_coverage"]
+        self.assertEqual(objective_coverage["cleared_count"], 2)
+        self.assertEqual(objective_coverage["total_count"], 3)
+        self.assertEqual(objective_coverage["percentage"], Decimal("66.67"))
+        self.assertEqual(
+            objective_coverage["as_of"], latest_price_report.as_of_timestamp
+        )
+        self.assertEqual(
+            objective_coverage["summary_text"],
+            "Latest price at or above 2 of 3 distinct objectives",
+        )
+        self.assertContains(response, "Objectives Cleared")
+        self.assertContains(response, "66.67%")
+        self.assertContains(
+            response, "Latest price at or above 2 of 3 distinct objectives"
+        )
+
+    def test_stock_detail_rating_card_shows_maintained_context(self):
+        stock = Stock.objects.create(
+            ticker="SHOP", region="US", company_name="Shopify Inc."
+        )
+        now = timezone.now()
+
+        DailyReport.objects.create(
+            stock=stock,
+            as_of_timestamp=now - timedelta(days=3),
+            rating="BUY",
+        )
+        DailyReport.objects.create(
+            stock=stock,
+            as_of_timestamp=now - timedelta(days=2),
+            price=Decimal("88.00"),
+        )
+        DailyReport.objects.create(
+            stock=stock,
+            as_of_timestamp=now - timedelta(days=1),
+            rating="BUY",
+        )
+
+        response = self.client.get(reverse("stock_detail", args=[stock.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["rating_change_summary"], "Maintained at Buy")
+        self.assertContains(response, "Maintained at Buy")
+
+    def test_stock_detail_rating_card_shows_downgraded_context(self):
+        stock = Stock.objects.create(
+            ticker="CRM", region="US", company_name="Salesforce Inc."
+        )
+        now = timezone.now()
+
+        DailyReport.objects.create(
+            stock=stock,
+            as_of_timestamp=now - timedelta(days=3),
+            rating="BUY",
+        )
+        DailyReport.objects.create(
+            stock=stock,
+            as_of_timestamp=now - timedelta(days=1),
+            rating="NEUTRAL",
+        )
+
+        response = self.client.get(reverse("stock_detail", args=[stock.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.context["rating_change_summary"], "Downgraded from Buy"
+        )
+        self.assertContains(response, "Downgraded from Buy")
+
+    def test_stock_detail_chart_adds_dashed_continuation_for_stale_points(self):
         stock = Stock.objects.create(
             ticker="META", region="US", company_name="Meta Platforms"
         )
@@ -378,71 +508,62 @@ class HomeViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         chart_price_points = response.context["chart_price_points"]
         chart_objective_points = response.context["chart_objective_points"]
+        chart_price_continuation_points = response.context[
+            "chart_price_continuation_points"
+        ]
+        chart_objective_continuation_points = response.context[
+            "chart_objective_continuation_points"
+        ]
         chart_x_max = response.context["chart_x_max"]
 
         self.assertEqual(len(chart_price_points), 2)
         self.assertEqual(len(chart_objective_points), 1)
-        self.assertGreater(chart_x_max, chart_price_points[-1]["x"])
-        self.assertGreater(chart_x_max, chart_objective_points[-1]["x"])
-        self.assertNotIn(chart_x_max, [point["x"] for point in chart_price_points])
-        self.assertNotIn(chart_x_max, [point["x"] for point in chart_objective_points])
+        self.assertEqual(len(chart_price_continuation_points), 2)
+        self.assertEqual(len(chart_objective_continuation_points), 2)
+        self.assertEqual(chart_price_continuation_points[-1]["x"], chart_x_max)
+        self.assertEqual(chart_objective_continuation_points[-1]["x"], chart_x_max)
+        self.assertEqual(
+            chart_price_continuation_points[0]["y"],
+            chart_price_continuation_points[-1]["y"],
+        )
+        self.assertEqual(
+            chart_objective_continuation_points[0]["y"],
+            chart_objective_continuation_points[-1]["y"],
+        )
         self.assertContains(response, "chart-x-max")
         self.assertContains(response, "objective-points")
+        self.assertContains(response, "price-continuation-points")
+        self.assertContains(response, "objective-continuation-points")
 
-    def test_stock_detail_objective_track_record_shows_mixed_follow_through(self):
+    def test_stock_detail_chart_skips_dashed_continuation_for_today_points(self):
         stock = Stock.objects.create(
-            ticker="TSLA", region="US", company_name="Tesla Inc."
+            ticker="ORCL", region="US", company_name="Oracle Corp."
         )
-        now = timezone.now()
+        today_start = timezone.localtime().replace(
+            hour=0,
+            minute=0,
+            second=0,
+            microsecond=0,
+        )
 
         DailyReport.objects.create(
             stock=stock,
-            as_of_timestamp=now - timedelta(days=6),
-            price_objective=Decimal("100.00"),
+            as_of_timestamp=today_start - timedelta(days=2),
+            price=Decimal("150.00"),
+            price_objective=Decimal("165.00"),
         )
         DailyReport.objects.create(
             stock=stock,
-            as_of_timestamp=now - timedelta(days=5),
-            price=Decimal("102.00"),
-        )
-        DailyReport.objects.create(
-            stock=stock,
-            as_of_timestamp=now - timedelta(days=4),
-            price_objective=Decimal("110.00"),
-        )
-        DailyReport.objects.create(
-            stock=stock,
-            as_of_timestamp=now - timedelta(days=3),
-            price=Decimal("104.00"),
-        )
-        DailyReport.objects.create(
-            stock=stock,
-            as_of_timestamp=now - timedelta(days=2),
-            price_objective=Decimal("120.00"),
-        )
-        DailyReport.objects.create(
-            stock=stock,
-            as_of_timestamp=now - timedelta(days=1),
-            price=Decimal("118.00"),
+            as_of_timestamp=today_start,
+            price=Decimal("155.00"),
+            price_objective=Decimal("170.00"),
         )
 
         response = self.client.get(reverse("stock_detail", args=[stock.id]))
 
         self.assertEqual(response.status_code, 200)
-        objective_track_record = response.context["objective_track_record"]
-        self.assertEqual(objective_track_record["status_label"], "Mixed follow-through")
-        self.assertEqual(objective_track_record["status_tone"], "neutral")
-        self.assertEqual(objective_track_record["met_count"], 1)
-        self.assertEqual(objective_track_record["missed_count"], 1)
-        self.assertEqual(objective_track_record["pending_count"], 1)
-        self.assertEqual(objective_track_record["resolved_count"], 2)
-        self.assertEqual(
-            objective_track_record["summary_text"], "1 of 2 resolved objectives hit"
-        )
-        self.assertEqual(objective_track_record["pending_text"], "1 pending objective")
-        self.assertContains(response, "Mixed follow-through")
-        self.assertContains(response, "1 of 2 resolved objectives hit")
-        self.assertContains(response, "1 pending objective")
+        self.assertEqual(response.context["chart_price_continuation_points"], [])
+        self.assertEqual(response.context["chart_objective_continuation_points"], [])
 
 
 class SearchViewTests(TestCase):

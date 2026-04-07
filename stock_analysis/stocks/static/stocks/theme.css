@@ -309,6 +309,11 @@ h2 {
     max-width: 68ch;
 }
 
+.lead strong {
+    color: #123828;
+    font-weight: 800;
+}
+
 .cta-row {
     display: flex;
     flex-wrap: wrap;

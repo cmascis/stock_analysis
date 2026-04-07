@@ -22,6 +22,12 @@ from django.utils import timezone
 from investor.models import HoldingSnapshot, Watch
 from stocks.models import DailyReport, Stock
 
+RATING_RANKS = {
+    "UNDERPERFORM": 0,
+    "NEUTRAL": 1,
+    "BUY": 2,
+}
+
 
 def _to_percent(value):
     if value is None:
@@ -41,7 +47,163 @@ def _get_latest_report_with_value(reports, field_name):
     )
 
 
-def _build_stock_detail_chart_data(reports):
+def _get_previous_report_with_value(
+    reports, current_report, field_name, *, require_different=False
+):
+    if current_report is None:
+        return None
+
+    current_value = getattr(current_report, field_name)
+    seen_current = False
+    for report in reports:
+        if not seen_current:
+            if report.pk == current_report.pk:
+                seen_current = True
+            continue
+        if not _report_has_value(report, field_name):
+            continue
+        if require_different and getattr(report, field_name) == current_value:
+            continue
+        return report
+    return None
+
+
+def _format_rating_label(value):
+    if not value:
+        return ""
+    return value.replace("_", " ").title()
+
+
+def _build_rating_change_summary(latest_rating_report, previous_rating_report):
+    if latest_rating_report is None:
+        return {
+            "latest_display": "",
+            "previous_display": "",
+            "summary_text": "No rating history yet",
+            "tone": "neutral",
+        }
+
+    latest_display = _format_rating_label(latest_rating_report.rating)
+    if previous_rating_report is None:
+        return {
+            "latest_display": latest_display,
+            "previous_display": "",
+            "summary_text": "No prior rating",
+            "tone": "neutral",
+        }
+
+    previous_display = _format_rating_label(previous_rating_report.rating)
+    latest_rank = RATING_RANKS.get(latest_rating_report.rating)
+    previous_rank = RATING_RANKS.get(previous_rating_report.rating)
+
+    if latest_rank is None or previous_rank is None:
+        summary_text = (
+            f"Previous rating: {previous_display}"
+            if latest_rating_report.rating == previous_rating_report.rating
+            else f"Changed from {previous_display}"
+        )
+        return {
+            "latest_display": latest_display,
+            "previous_display": previous_display,
+            "summary_text": summary_text,
+            "tone": "neutral",
+        }
+
+    if latest_rank > previous_rank:
+        summary_text = f"Upgraded from {previous_display}"
+        tone = "positive"
+    elif latest_rank < previous_rank:
+        summary_text = f"Downgraded from {previous_display}"
+        tone = "negative"
+    else:
+        summary_text = f"Maintained at {latest_display}"
+        tone = "neutral"
+
+    return {
+        "latest_display": latest_display,
+        "previous_display": previous_display,
+        "summary_text": summary_text,
+        "tone": tone,
+    }
+
+
+def _build_objective_coverage(latest_price_report, reports):
+    distinct_objectives = sorted(
+        {
+            report.price_objective
+            for report in reports
+            if report.price_objective is not None
+        }
+    )
+    if not distinct_objectives:
+        return {
+            "percentage": None,
+            "cleared_count": 0,
+            "total_count": 0,
+            "summary_text": "No price objectives available yet",
+            "as_of": None,
+        }
+
+    if latest_price_report is None:
+        total_count = len(distinct_objectives)
+        objective_suffix = "" if total_count == 1 else "s"
+        return {
+            "percentage": None,
+            "cleared_count": 0,
+            "total_count": total_count,
+            "summary_text": (
+                "No latest price available to compare against "
+                f"{total_count} distinct objective{objective_suffix}"
+            ),
+            "as_of": None,
+        }
+
+    cleared_count = sum(
+        latest_price_report.price >= objective for objective in distinct_objectives
+    )
+    total_count = len(distinct_objectives)
+    coverage_percentage = (
+        Decimal(cleared_count) * Decimal("100") / Decimal(total_count)
+    ).quantize(Decimal("0.01"))
+    objective_suffix = "" if total_count == 1 else "s"
+
+    return {
+        "percentage": coverage_percentage,
+        "cleared_count": cleared_count,
+        "total_count": total_count,
+        "summary_text": (
+            f"Latest price at or above {cleared_count} of {total_count} distinct "
+            f"objective{objective_suffix}"
+        ),
+        "as_of": latest_price_report.as_of_timestamp,
+    }
+
+
+def _build_chart_continuation_points(latest_report, field_name, now_at_ms, today):
+    if latest_report is None:
+        return []
+    if timezone.localtime(latest_report.as_of_timestamp).date() >= today:
+        return []
+
+    y_value = float(getattr(latest_report, field_name))
+    return [
+        {
+            "x": int(latest_report.as_of_timestamp.timestamp() * 1000),
+            "y": y_value,
+        },
+        {
+            "x": now_at_ms,
+            "y": y_value,
+        },
+    ]
+
+
+def _build_stock_detail_chart_data(
+    reports, latest_price_report, latest_objective_report
+):
+    now = timezone.now()
+    now_at_ms = int(now.timestamp() * 1000)
+    today = timezone.localdate(now)
     chart_reports = [
         report
         for report in reversed(reports)
@@ -63,110 +225,25 @@ def _build_stock_detail_chart_data(reports):
         for report in chart_reports
         if report.price_objective is not None
     ]
-    latest_point_at = max(
-        [point["x"] for point in chart_price_points + chart_objective_points],
-        default=0,
-    )
-    chart_x_max = max(int(timezone.now().timestamp() * 1000), latest_point_at)
 
     return {
         "price_points": chart_price_points,
         "objective_points": chart_objective_points,
-        "x_max": chart_x_max,
+        "price_continuation_points": _build_chart_continuation_points(
+            latest_price_report,
+            "price",
+            now_at_ms,
+            today,
+        ),
+        "objective_continuation_points": _build_chart_continuation_points(
+            latest_objective_report,
+            "price_objective",
+            now_at_ms,
+            today,
+        ),
+        "x_max": now_at_ms,
         "has_data": bool(chart_price_points or chart_objective_points),
         "point_count": len(chart_reports),
-    }
-
-
-def _build_objective_track_record(reports):
-    chronological_reports = list(reversed(reports))
-    objective_reports = [
-        report for report in chronological_reports if report.price_objective is not None
-    ]
-    if not objective_reports:
-        return {
-            "status_label": "No objective history",
-            "status_tone": "neutral",
-            "summary_text": "No price objectives available yet",
-            "pending_text": None,
-            "met_count": 0,
-            "missed_count": 0,
-            "pending_count": 0,
-            "resolved_count": 0,
-        }
-
-    met_count = 0
-    missed_count = 0
-    pending_count = 0
-
-    for index, objective_report in enumerate(objective_reports):
-        next_objective_report = (
-            objective_reports[index + 1] if index + 1 < len(objective_reports) else None
-        )
-        price_reports_in_window = [
-            report
-            for report in chronological_reports
-            if report.price is not None
-            and report.as_of_timestamp > objective_report.as_of_timestamp
-            and (
-                next_objective_report is None
-                or report.as_of_timestamp < next_objective_report.as_of_timestamp
-            )
-        ]
-
-        if next_objective_report is None:
-            pending_count += 1
-        elif any(
-            report.price >= objective_report.price_objective
-            for report in price_reports_in_window
-        ):
-            met_count += 1
-        elif price_reports_in_window:
-            missed_count += 1
-        else:
-            pending_count += 1
-
-    resolved_count = met_count + missed_count
-    if resolved_count == 0:
-        return {
-            "status_label": "Pending",
-            "status_tone": "neutral",
-            "summary_text": "No resolved objectives yet",
-            "pending_text": (
-                f"{pending_count} pending objective{'' if pending_count == 1 else 's'}"
-            ),
-            "met_count": met_count,
-            "missed_count": missed_count,
-            "pending_count": pending_count,
-            "resolved_count": resolved_count,
-        }
-
-    if met_count * 3 >= resolved_count * 2:
-        status_label = "Meeting objectives"
-        status_tone = "positive"
-    elif met_count * 3 >= resolved_count:
-        status_label = "Mixed follow-through"
-        status_tone = "neutral"
-    else:
-        status_label = "Falling short"
-        status_tone = "negative"
-
-    return {
-        "status_label": status_label,
-        "status_tone": status_tone,
-        "summary_text": (
-            f"{met_count} of {resolved_count} resolved objective"
-            f"{'' if resolved_count == 1 else 's'} hit"
-        ),
-        "pending_text": (
-            f"{pending_count} pending objective{'' if pending_count == 1 else 's'}"
-            if pending_count
-            else None
-        ),
-        "met_count": met_count,
-        "missed_count": missed_count,
-        "pending_count": pending_count,
-        "resolved_count": resolved_count,
     }
 
 
@@ -541,25 +618,44 @@ def stock_detail(request, stock_id):
 
     latest_price_report = _get_latest_report_with_value(reports, "price")
     latest_objective_report = _get_latest_report_with_value(reports, "price_objective")
+    latest_upside_report = _get_latest_report_with_value(reports, "upside")
     latest_rating_report = _get_latest_report_with_value(reports, "rating")
-    objective_reports = [
-        report for report in reports if report.price_objective is not None
-    ]
-    latest_objective_change_report = (
-        objective_reports[0] if len(objective_reports) >= 2 else None
+    previous_rating_report = _get_previous_report_with_value(
+        reports,
+        latest_rating_report,
+        "rating",
     )
-    previous_objective_report = (
-        objective_reports[1] if len(objective_reports) >= 2 else None
+    previous_different_objective_report = _get_previous_report_with_value(
+        reports,
+        latest_objective_report,
+        "price_objective",
+        require_different=True,
     )
-    objective_change = None
-    if latest_objective_change_report and previous_objective_report:
-        objective_change = (
-            latest_objective_change_report.price_objective
-            - previous_objective_report.price_objective
-        )
 
-    chart_data = _build_stock_detail_chart_data(reports)
-    objective_track_record = _build_objective_track_record(reports)
+    objective_change = None
+    objective_change_pct = None
+    if latest_objective_report and previous_different_objective_report:
+        objective_change = (
+            latest_objective_report.price_objective
+            - previous_different_objective_report.price_objective
+        )
+        if previous_different_objective_report.price_objective != Decimal("0"):
+            objective_change_pct = (
+                objective_change
+                * Decimal("100")
+                / previous_different_objective_report.price_objective
+            ).quantize(Decimal("0.01"))
+
+    rating_change = _build_rating_change_summary(
+        latest_rating_report,
+        previous_rating_report,
+    )
+    chart_data = _build_stock_detail_chart_data(
+        reports,
+        latest_price_report,
+        latest_objective_report,
+    )
+    objective_coverage = _build_objective_coverage(latest_price_report, reports)
 
     context = {
         "stock": stock,
@@ -575,19 +671,42 @@ def stock_detail(request, stock_id):
         "latest_price_objective_as_of": (
             latest_objective_report.as_of_timestamp if latest_objective_report else None
         ),
+        "latest_upside_pct": _to_percent(latest_upside_report.upside)
+        if latest_upside_report
+        else None,
+        "latest_upside_as_of": (
+            latest_upside_report.as_of_timestamp if latest_upside_report else None
+        ),
         "latest_rating": latest_rating_report.rating if latest_rating_report else "",
+        "latest_rating_display": rating_change["latest_display"],
         "latest_rating_as_of": (
             latest_rating_report.as_of_timestamp if latest_rating_report else None
         ),
+        "previous_rating": previous_rating_report.rating
+        if previous_rating_report
+        else "",
+        "previous_rating_display": rating_change["previous_display"],
+        "rating_change_summary": rating_change["summary_text"],
+        "rating_change_tone": rating_change["tone"],
         "objective_change": objective_change,
         "objective_change_as_of": (
-            latest_objective_change_report.as_of_timestamp
-            if latest_objective_change_report
+            latest_objective_report.as_of_timestamp
+            if latest_objective_report and previous_different_objective_report
             else None
         ),
-        "objective_track_record": objective_track_record,
+        "objective_change_pct": objective_change_pct,
+        "previous_different_objective": (
+            previous_different_objective_report.price_objective
+            if previous_different_objective_report
+            else None
+        ),
+        "objective_coverage": objective_coverage,
         "chart_price_points": chart_data["price_points"],
         "chart_objective_points": chart_data["objective_points"],
+        "chart_price_continuation_points": chart_data["price_continuation_points"],
+        "chart_objective_continuation_points": chart_data[
+            "objective_continuation_points"
+        ],
         "chart_x_max": chart_data["x_max"],
         "chart_has_data": chart_data["has_data"],
         "chart_data_point_count": chart_data["point_count"],
