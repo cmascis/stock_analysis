@@ -16,36 +16,82 @@
                     <p class="subtle analysis-window-copy">
                         Showing {{ selected_start_date|date:"M j, Y" }} to {{ selected_end_date|date:"M j, Y" }}.
                         Available {{ earliest_report_date|date:"M j, Y" }} to {{ last_report_date|date:"M j, Y" }}.
-                        Auto-applies after you leave a date field.
+                        Type MM-DD-YYYY and press Enter or leave the bubble. Calendar selections apply immediately.
                     </p>
                 </div>
                 <div class="analysis-window-controls">
-                    <label class="analysis-window-field analysis-window-field-compact">
+                    <label class="analysis-window-field analysis-window-field-compact" data-window-field="start">
                         <span>Start date</span>
-                        <input
-                            class="analysis-window-input"
-                            type="date"
-                            name="start_date"
-                            value="{{ selected_start_date|date:'Y-m-d' }}"
-                            min="{{ earliest_report_date|date:'Y-m-d' }}"
-                            max="{{ last_report_date|date:'Y-m-d' }}"
-                            required
-                            data-window-start
-                        >
+                        <div class="analysis-window-input-shell">
+                            <input
+                                class="analysis-window-input analysis-window-text-input"
+                                type="text"
+                                value="{{ selected_start_date|date:'m-d-Y' }}"
+                                placeholder="MM-DD-YYYY"
+                                maxlength="10"
+                                inputmode="numeric"
+                                autocomplete="off"
+                                spellcheck="false"
+                                aria-describedby="start-date-feedback"
+                                data-window-text
+                            >
+                            <input
+                                type="hidden"
+                                name="start_date"
+                                value="{{ selected_start_date|date:'Y-m-d' }}"
+                                data-window-value
+                            >
+                            <span class="analysis-window-picker-shell">
+                                <span class="analysis-window-picker-button" aria-hidden="true"></span>
+                                <input
+                                    class="analysis-window-picker-input"
+                                    type="date"
+                                    value="{{ selected_start_date|date:'Y-m-d' }}"
+                                    min="{{ earliest_report_date|date:'Y-m-d' }}"
+                                    max="{{ last_report_date|date:'Y-m-d' }}"
+                                    aria-label="Choose start date from calendar"
+                                    data-window-picker
+                                >
+                            </span>
+                        </div>
+                        <small class="analysis-window-feedback" id="start-date-feedback" aria-live="polite" hidden></small>
                     </label>
                     <span class="analysis-window-divider" aria-hidden="true"></span>
-                    <label class="analysis-window-field analysis-window-field-compact">
+                    <label class="analysis-window-field analysis-window-field-compact" data-window-field="end">
                         <span>End date</span>
-                        <input
-                            class="analysis-window-input"
-                            type="date"
-                            name="end_date"
-                            value="{{ selected_end_date|date:'Y-m-d' }}"
-                            min="{{ earliest_report_date|date:'Y-m-d' }}"
-                            max="{{ today|date:'Y-m-d' }}"
-                            required
-                            data-window-end
-                        >
+                        <div class="analysis-window-input-shell">
+                            <input
+                                class="analysis-window-input analysis-window-text-input"
+                                type="text"
+                                value="{{ selected_end_date|date:'m-d-Y' }}"
+                                placeholder="MM-DD-YYYY"
+                                maxlength="10"
+                                inputmode="numeric"
+                                autocomplete="off"
+                                spellcheck="false"
+                                aria-describedby="end-date-feedback"
+                                data-window-text
+                            >
+                            <input
+                                type="hidden"
+                                name="end_date"
+                                value="{{ selected_end_date|date:'Y-m-d' }}"
+                                data-window-value
+                            >
+                            <span class="analysis-window-picker-shell">
+                                <span class="analysis-window-picker-button" aria-hidden="true"></span>
+                                <input
+                                    class="analysis-window-picker-input"
+                                    type="date"
+                                    value="{{ selected_end_date|date:'Y-m-d' }}"
+                                    min="{{ earliest_report_date|date:'Y-m-d' }}"
+                                    max="{{ today|date:'Y-m-d' }}"
+                                    aria-label="Choose end date from calendar"
+                                    data-window-picker
+                                >
+                            </span>
+                        </div>
+                        <small class="analysis-window-feedback" id="end-date-feedback" aria-live="polite" hidden></small>
                     </label>
                     <a class="analysis-window-reset" href="{% url 'stock_detail' stock.id %}">Reset window</a>
                 </div>
@@ -387,77 +433,203 @@
 
       const analysisWindowForm = document.querySelector("[data-analysis-window-form]");
       const reportDatesScript = document.getElementById("report-date-options");
-      const startInput = document.querySelector("[data-window-start]");
-      const endInput = document.querySelector("[data-window-end]");
-      if (analysisWindowForm && reportDatesScript && startInput && endInput) {
+      if (analysisWindowForm && reportDatesScript) {
         const reportDates = JSON.parse(reportDatesScript.textContent);
-        const defaultStartMin = startInput.min;
-        const defaultStartMax = startInput.max;
-        const defaultEndMin = endInput.min;
-        const defaultEndMax = endInput.max;
-        const submitWindow = () => {
-          if (analysisWindowForm.dataset.submitting === "true") {
-            return;
+        const buildWindowField = (name) => {
+          const field = analysisWindowForm.querySelector(`[data-window-field="${name}"]`);
+          if (!field) {
+            return null;
           }
-          analysisWindowForm.dataset.submitting = "true";
-          if (analysisWindowForm.requestSubmit) {
-            analysisWindowForm.requestSubmit();
-            return;
+
+          const textInput = field.querySelector("[data-window-text]");
+          const valueInput = field.querySelector("[data-window-value]");
+          const pickerInput = field.querySelector("[data-window-picker]");
+          const pickerShell = field.querySelector(".analysis-window-picker-shell");
+          const feedback = field.querySelector(".analysis-window-feedback");
+          if (!textInput || !valueInput || !pickerInput || !pickerShell || !feedback) {
+            return null;
           }
-          analysisWindowForm.submit();
+
+          return {
+            field,
+            textInput,
+            valueInput,
+            pickerInput,
+            pickerShell,
+            feedback,
+            defaultMin: pickerInput.min,
+            defaultMax: pickerInput.max,
+          };
         };
-        const findFirstOnOrAfter = (value) =>
-          reportDates.find((reportDate) => reportDate >= value) || null;
-        const findLastOnOrBefore = (value) => {
-          for (let index = reportDates.length - 1; index >= 0; index -= 1) {
-            if (reportDates[index] <= value) {
-              return reportDates[index];
+        const startField = buildWindowField("start");
+        const endField = buildWindowField("end");
+        if (startField && endField) {
+          const submitWindow = () => {
+            if (analysisWindowForm.dataset.submitting === "true") {
+              return;
             }
-          }
-          return null;
-        };
-        const syncDateInputs = () => {
-          const selectedStart = startInput.value || defaultStartMin;
-          const selectedEnd = endInput.value || defaultEndMax;
-          const minEnd = findFirstOnOrAfter(selectedStart) || defaultEndMin;
-          const maxStart = findLastOnOrBefore(selectedEnd) || defaultStartMax;
+            analysisWindowForm.dataset.submitting = "true";
+            if (analysisWindowForm.requestSubmit) {
+              analysisWindowForm.requestSubmit();
+              return;
+            }
+            analysisWindowForm.submit();
+          };
+          const findFirstOnOrAfter = (value) =>
+            reportDates.find((reportDate) => reportDate >= value) || null;
+          const findLastOnOrBefore = (value) => {
+            for (let index = reportDates.length - 1; index >= 0; index -= 1) {
+              if (reportDates[index] <= value) {
+                return reportDates[index];
+              }
+            }
+            return null;
+          };
+          const padDatePart = (value) => String(value).padStart(2, "0");
+          const formatWindowDate = (value) => {
+            if (!value) {
+              return "";
+            }
+            const [year, month, day] = value.split("-");
+            return `${month}-${day}-${year}`;
+          };
+          const parseWindowDate = (value) => {
+            const trimmed = value.trim();
+            if (!trimmed) {
+              return null;
+            }
 
-          endInput.min = minEnd;
-          startInput.max = maxStart;
+            let year;
+            let month;
+            let day;
+            let match = trimmed.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+            if (match) {
+              [, year, month, day] = match;
+            } else {
+              match = trimmed.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+              if (!match) {
+                return null;
+              }
+              [, month, day, year] = match;
+            }
 
-          if (startInput.value && startInput.value > maxStart) {
-            startInput.value = maxStart;
-          }
-          if (endInput.value && endInput.value < minEnd) {
-            endInput.value = minEnd;
-          }
-        };
+            const numericYear = Number(year);
+            const numericMonth = Number(month);
+            const numericDay = Number(day);
+            if (
+              !Number.isInteger(numericYear) ||
+              !Number.isInteger(numericMonth) ||
+              !Number.isInteger(numericDay)
+            ) {
+              return null;
+            }
 
-        let pendingWindowSubmit = false;
-        const markWindowChangePending = () => {
-          pendingWindowSubmit = true;
-        };
-        const handleWindowBlur = (event) => {
-          if (analysisWindowForm.contains(event.relatedTarget)) {
-            return;
-          }
-          if (!pendingWindowSubmit) {
-            return;
-          }
-          if (!startInput.validity.valid || !endInput.validity.valid) {
-            return;
-          }
-          pendingWindowSubmit = false;
-          // Avoid clamping native date inputs while the user is still typing.
-          syncDateInputs();
-          submitWindow();
-        };
+            const candidate = new Date(
+              Date.UTC(numericYear, numericMonth - 1, numericDay),
+            );
+            if (
+              candidate.getUTCFullYear() !== numericYear ||
+              candidate.getUTCMonth() !== numericMonth - 1 ||
+              candidate.getUTCDate() !== numericDay
+            ) {
+              return null;
+            }
 
-        startInput.addEventListener("change", markWindowChangePending);
-        endInput.addEventListener("change", markWindowChangePending);
-        startInput.addEventListener("blur", handleWindowBlur);
-        endInput.addEventListener("blur", handleWindowBlur);
-        syncDateInputs();
+            return [
+              numericYear,
+              padDatePart(numericMonth),
+              padDatePart(numericDay),
+            ].join("-");
+          };
+          const clearFieldError = (config) => {
+            config.field.classList.remove("is-invalid");
+            config.feedback.hidden = true;
+            config.feedback.textContent = "";
+            config.textInput.removeAttribute("aria-invalid");
+          };
+          const setFieldError = (config) => {
+            config.field.classList.add("is-invalid");
+            config.feedback.hidden = false;
+            config.feedback.textContent = `Enter a valid date from ${formatWindowDate(config.defaultMin)} to ${formatWindowDate(config.defaultMax)}.`;
+            config.textInput.setAttribute("aria-invalid", "true");
+          };
+          const syncPickerBounds = () => {
+            const selectedStart = startField.valueInput.value || startField.defaultMin;
+            const selectedEnd = endField.valueInput.value || endField.defaultMax;
+            const minEnd = findFirstOnOrAfter(selectedStart) || endField.defaultMin;
+            const maxStart = findLastOnOrBefore(selectedEnd) || startField.defaultMax;
+
+            endField.pickerInput.min = minEnd;
+            startField.pickerInput.max = maxStart;
+          };
+          const normalizeCommittedValue = (config, value) => {
+            config.valueInput.value = value;
+            config.textInput.value = formatWindowDate(value);
+            config.pickerInput.value = value;
+            clearFieldError(config);
+            syncPickerBounds();
+          };
+          const commitTypedValue = (config) => {
+            const parsedValue = parseWindowDate(config.textInput.value);
+            if (
+              !parsedValue ||
+              parsedValue < config.defaultMin ||
+              parsedValue > config.defaultMax
+            ) {
+              setFieldError(config);
+              return false;
+            }
+
+            const hasChanged = parsedValue !== config.valueInput.value;
+            normalizeCommittedValue(config, parsedValue);
+            if (hasChanged) {
+              submitWindow();
+            }
+            return true;
+          };
+          const handlePickerChange = (config) => {
+            if (!config.pickerInput.value) {
+              return;
+            }
+            normalizeCommittedValue(config, config.pickerInput.value);
+            submitWindow();
+          };
+          const openPicker = (config) => {
+            config.pickerInput.focus({ preventScroll: true });
+            if (typeof config.pickerInput.showPicker === "function") {
+              config.pickerInput.showPicker();
+              return;
+            }
+            config.pickerInput.click();
+          };
+          const handleFieldFocusOut = (config, event) => {
+            if (config.field.contains(event.relatedTarget)) {
+              return;
+            }
+            commitTypedValue(config);
+          };
+
+          [startField, endField].forEach((config) => {
+            config.textInput.addEventListener("input", () => clearFieldError(config));
+            config.textInput.addEventListener("keydown", (event) => {
+              if (event.key !== "Enter") {
+                return;
+              }
+              event.preventDefault();
+              commitTypedValue(config);
+            });
+            config.field.addEventListener("focusout", (event) => {
+              handleFieldFocusOut(config, event);
+            });
+            config.pickerShell.addEventListener("pointerdown", (event) => {
+              event.preventDefault();
+            });
+            config.pickerShell.addEventListener("click", () => openPicker(config));
+            config.pickerInput.addEventListener("change", () => handlePickerChange(config));
+          });
+
+          syncPickerBounds();
+        }
       }
 
       const cards = Array.from(document.querySelectorAll("[data-report-card]"));

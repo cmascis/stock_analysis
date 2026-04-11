@@ -609,10 +609,18 @@ class HomeViewTests(TestCase):
         self.assertContains(response, 'name="start_date"')
         self.assertContains(response, 'name="end_date"')
         self.assertContains(response, "data-analysis-window-form")
-        self.assertContains(response, "Auto-applies after you leave a date field.")
+        self.assertContains(
+            response, "Type MM-DD-YYYY and press Enter or leave the bubble."
+        )
+        self.assertContains(response, "Calendar selections apply immediately.")
         self.assertContains(response, "report-date-options")
+        self.assertContains(response, "data-window-text")
+        self.assertContains(response, "data-window-picker")
+        self.assertContains(response, 'placeholder="MM-DD-YYYY"')
+        self.assertContains(response, "analysis-window-picker-shell")
+        self.assertContains(response, "analysis-window-feedback")
 
-    def test_stock_detail_analysis_window_waits_for_field_blur_before_submit(self):
+    def test_stock_detail_analysis_window_splits_text_entry_and_picker_behavior(self):
         stock = Stock.objects.create(
             ticker="META", region="US", company_name="Meta Platforms"
         )
@@ -633,35 +641,51 @@ class HomeViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(
             response,
-            'startInput.addEventListener("change", markWindowChangePending);',
+            'config.textInput.addEventListener("keydown", (event) => {',
         )
         self.assertContains(
+            response,
+            'config.field.addEventListener("focusout", (event) => {',
+        )
+        self.assertContains(
+            response,
+            'config.pickerInput.addEventListener("change", () => handlePickerChange(config));',
+        )
+        self.assertContains(
+            response,
+            'config.pickerShell.addEventListener("click", () => openPicker(config));',
+        )
+        self.assertContains(
+            response,
+            'if (typeof config.pickerInput.showPicker === "function") {',
+        )
+        self.assertContains(
+            response,
+            "return `${month}-${day}-${year}`;",
+        )
+        self.assertNotContains(
+            response,
+            "return `${month}/${day}/${year}`;",
+        )
+        self.assertContains(
+            response,
+            'config.field.classList.add("is-invalid");',
+        )
+        self.assertNotContains(
+            response,
+            'startInput.addEventListener("change", markWindowChangePending);',
+        )
+        self.assertNotContains(
             response,
             'endInput.addEventListener("change", markWindowChangePending);',
         )
-        self.assertContains(
+        self.assertNotContains(
             response,
             'startInput.addEventListener("blur", handleWindowBlur);',
         )
-        self.assertContains(
+        self.assertNotContains(
             response,
             'endInput.addEventListener("blur", handleWindowBlur);',
-        )
-        self.assertNotContains(
-            response,
-            'startInput.addEventListener("input", syncDateInputs);',
-        )
-        self.assertNotContains(
-            response,
-            'endInput.addEventListener("input", syncDateInputs);',
-        )
-        self.assertNotContains(
-            response,
-            'startInput.addEventListener("change", handleWindowChange);',
-        )
-        self.assertNotContains(
-            response,
-            'endInput.addEventListener("change", handleWindowChange);',
         )
 
     def test_stock_detail_filters_reports_and_metrics_by_selected_window(self):
