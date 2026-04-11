@@ -9,6 +9,51 @@
         <h1>{{ stock.ticker }} {{ stock.region }}</h1>
         <p class="lead"><strong>{{ stock.company_name }}{% if latest_rating_display %} | {{ latest_rating_display }}{% endif %}</strong></p>
 
+        {% if has_report_history %}
+            <form class="analysis-window" method="get" data-analysis-window-form>
+                <div class="analysis-window-meta">
+                    <p class="analysis-window-kicker">Analysis Window</p>
+                    <p class="subtle analysis-window-copy">
+                        Showing {{ selected_start_date|date:"M j, Y" }} to {{ selected_end_date|date:"M j, Y" }}.
+                        Available {{ earliest_report_date|date:"M j, Y" }} to {{ last_report_date|date:"M j, Y" }}.
+                        Auto-applies after you leave a date field.
+                    </p>
+                </div>
+                <div class="analysis-window-controls">
+                    <label class="analysis-window-field analysis-window-field-compact">
+                        <span>Start date</span>
+                        <input
+                            class="analysis-window-input"
+                            type="date"
+                            name="start_date"
+                            value="{{ selected_start_date|date:'Y-m-d' }}"
+                            min="{{ earliest_report_date|date:'Y-m-d' }}"
+                            max="{{ last_report_date|date:'Y-m-d' }}"
+                            required
+                            data-window-start
+                        >
+                    </label>
+                    <span class="analysis-window-divider" aria-hidden="true"></span>
+                    <label class="analysis-window-field analysis-window-field-compact">
+                        <span>End date</span>
+                        <input
+                            class="analysis-window-input"
+                            type="date"
+                            name="end_date"
+                            value="{{ selected_end_date|date:'Y-m-d' }}"
+                            min="{{ earliest_report_date|date:'Y-m-d' }}"
+                            max="{{ today|date:'Y-m-d' }}"
+                            required
+                            data-window-end
+                        >
+                    </label>
+                    <a class="analysis-window-reset" href="{% url 'stock_detail' stock.id %}">Reset window</a>
+                </div>
+                <noscript><button type="submit" class="btn btn-ghost analysis-window-noscript">Apply window</button></noscript>
+            </form>
+            {{ report_date_options|json_script:"report-date-options" }}
+        {% endif %}
+
         <div class="metrics-grid">
             <article class="metric-card">
                 <span class="metric-label">Reports</span>
@@ -81,7 +126,13 @@
             {{ chart_objective_continuation_points|json_script:"objective-continuation-points" }}
             {{ chart_x_max|json_script:"chart-x-max" }}
         {% else %}
-            <p class="empty-note">No price or price objective values are available yet for this stock.</p>
+            <p class="empty-note">
+                {% if has_report_history %}
+                    No price or price objective values are available in this window.
+                {% else %}
+                    No price or price objective values are available yet for this stock.
+                {% endif %}
+            </p>
         {% endif %}
     </section>
 
@@ -178,7 +229,13 @@
                 {% endfor %}
             </div>
         {% else %}
-            <p class="empty-note">No reports found for this stock yet.</p>
+            <p class="empty-note">
+                {% if has_report_history %}
+                    No reports are available in this window.
+                {% else %}
+                    No reports found for this stock yet.
+                {% endif %}
+            </p>
         {% endif %}
     </section>
 
@@ -328,50 +385,123 @@
         });
       }
 
+      const analysisWindowForm = document.querySelector("[data-analysis-window-form]");
+      const reportDatesScript = document.getElementById("report-date-options");
+      const startInput = document.querySelector("[data-window-start]");
+      const endInput = document.querySelector("[data-window-end]");
+      if (analysisWindowForm && reportDatesScript && startInput && endInput) {
+        const reportDates = JSON.parse(reportDatesScript.textContent);
+        const defaultStartMin = startInput.min;
+        const defaultStartMax = startInput.max;
+        const defaultEndMin = endInput.min;
+        const defaultEndMax = endInput.max;
+        const submitWindow = () => {
+          if (analysisWindowForm.dataset.submitting === "true") {
+            return;
+          }
+          analysisWindowForm.dataset.submitting = "true";
+          if (analysisWindowForm.requestSubmit) {
+            analysisWindowForm.requestSubmit();
+            return;
+          }
+          analysisWindowForm.submit();
+        };
+        const findFirstOnOrAfter = (value) =>
+          reportDates.find((reportDate) => reportDate >= value) || null;
+        const findLastOnOrBefore = (value) => {
+          for (let index = reportDates.length - 1; index >= 0; index -= 1) {
+            if (reportDates[index] <= value) {
+              return reportDates[index];
+            }
+          }
+          return null;
+        };
+        const syncDateInputs = () => {
+          const selectedStart = startInput.value || defaultStartMin;
+          const selectedEnd = endInput.value || defaultEndMax;
+          const minEnd = findFirstOnOrAfter(selectedStart) || defaultEndMin;
+          const maxStart = findLastOnOrBefore(selectedEnd) || defaultStartMax;
+
+          endInput.min = minEnd;
+          startInput.max = maxStart;
+
+          if (startInput.value && startInput.value > maxStart) {
+            startInput.value = maxStart;
+          }
+          if (endInput.value && endInput.value < minEnd) {
+            endInput.value = minEnd;
+          }
+        };
+
+        let pendingWindowSubmit = false;
+        const markWindowChangePending = () => {
+          pendingWindowSubmit = true;
+        };
+        const handleWindowBlur = (event) => {
+          if (analysisWindowForm.contains(event.relatedTarget)) {
+            return;
+          }
+          if (!pendingWindowSubmit) {
+            return;
+          }
+          if (!startInput.validity.valid || !endInput.validity.valid) {
+            return;
+          }
+          pendingWindowSubmit = false;
+          // Avoid clamping native date inputs while the user is still typing.
+          syncDateInputs();
+          submitWindow();
+        };
+
+        startInput.addEventListener("change", markWindowChangePending);
+        endInput.addEventListener("change", markWindowChangePending);
+        startInput.addEventListener("blur", handleWindowBlur);
+        endInput.addEventListener("blur", handleWindowBlur);
+        syncDateInputs();
+      }
+
       const cards = Array.from(document.querySelectorAll("[data-report-card]"));
       const counter = document.querySelector("[data-report-counter]");
       const prevButton = document.querySelector("[data-report-prev]");
       const nextButton = document.querySelector("[data-report-next]");
       const reportSelect = document.querySelector("[data-report-select]");
-      if (!cards.length || !counter || !prevButton || !nextButton) {
-        return;
-      }
+      if (cards.length && counter && prevButton && nextButton) {
+        let index = 0;
+        const render = () => {
+          cards.forEach((card, i) => {
+            card.hidden = i !== index;
+          });
+          counter.textContent = `${index + 1} / ${cards.length}`;
+          prevButton.disabled = index === 0;
+          nextButton.disabled = index === cards.length - 1;
+          if (reportSelect) {
+            reportSelect.value = String(index);
+          }
+        };
 
-      let index = 0;
-      const render = () => {
-        cards.forEach((card, i) => {
-          card.hidden = i !== index;
+        prevButton.addEventListener("click", () => {
+          if (index > 0) {
+            index -= 1;
+            render();
+          }
         });
-        counter.textContent = `${index + 1} / ${cards.length}`;
-        prevButton.disabled = index === 0;
-        nextButton.disabled = index === cards.length - 1;
+
+        nextButton.addEventListener("click", () => {
+          if (index < cards.length - 1) {
+            index += 1;
+            render();
+          }
+        });
+
         if (reportSelect) {
-          reportSelect.value = String(index);
+          reportSelect.addEventListener("change", () => {
+            index = Number(reportSelect.value) || 0;
+            render();
+          });
         }
-      };
 
-      prevButton.addEventListener("click", () => {
-        if (index > 0) {
-          index -= 1;
-          render();
-        }
-      });
-
-      nextButton.addEventListener("click", () => {
-        if (index < cards.length - 1) {
-          index += 1;
-          render();
-        }
-      });
-
-      if (reportSelect) {
-        reportSelect.addEventListener("change", () => {
-          index = Number(reportSelect.value) || 0;
-          render();
-        });
+        render();
       }
-
-      render();
     })();
     </script>
 {% endblock %}

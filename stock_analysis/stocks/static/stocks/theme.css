@@ -314,6 +314,122 @@ h2 {
     font-weight: 800;
 }
 
+.analysis-window {
+    backdrop-filter: blur(14px);
+    background: linear-gradient(
+        135deg,
+        rgba(255, 255, 255, 0.88) 0%,
+        rgba(248, 244, 236, 0.94) 100%
+    );
+    border: 1px solid rgba(17, 69, 54, 0.11);
+    border-radius: 20px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    display: grid;
+    gap: 14px;
+    margin-top: 24px;
+    padding: 18px 20px;
+}
+
+.analysis-window-meta {
+    display: grid;
+    gap: 5px;
+}
+
+.analysis-window-kicker {
+    color: #0f6e58;
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    margin: 0;
+    text-transform: uppercase;
+}
+
+.analysis-window-copy {
+    margin: 0;
+    max-width: 70ch;
+}
+
+.analysis-window-controls {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.analysis-window-field {
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(20, 55, 42, 0.14);
+    border-radius: 999px;
+    display: grid;
+    gap: 3px;
+    min-width: 210px;
+    padding: 9px 15px 10px;
+    transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.analysis-window-field:focus-within {
+    border-color: rgba(13, 106, 88, 0.5);
+    box-shadow: 0 0 0 3px rgba(13, 106, 88, 0.12);
+    transform: translateY(-1px);
+}
+
+.analysis-window-field span {
+    color: #446359;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.analysis-window-input {
+    background: transparent;
+    border: 0;
+    color: var(--text);
+    font: inherit;
+    font-weight: 700;
+    min-height: auto;
+    padding: 0;
+}
+
+.analysis-window-input:focus {
+    outline: 0;
+}
+
+.analysis-window-input::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 0.72;
+}
+
+.analysis-window-divider {
+    background: rgba(17, 69, 54, 0.2);
+    border-radius: 999px;
+    flex: 0 0 16px;
+    height: 1px;
+}
+
+.analysis-window-reset {
+    color: #0f6e58;
+    font-size: 0.92rem;
+    font-weight: 700;
+    margin-left: auto;
+    text-decoration: none;
+}
+
+.analysis-window-reset:hover {
+    color: #0a5948;
+}
+
+.analysis-window-reset:focus-visible {
+    border-radius: 999px;
+    outline: 3px solid rgba(13, 106, 88, 0.18);
+    outline-offset: 3px;
+}
+
+.analysis-window-noscript {
+    justify-content: center;
+    width: fit-content;
+}
+
 .cta-row {
     display: flex;
     flex-wrap: wrap;
@@ -794,6 +910,10 @@ h2 {
         grid-template-columns: 1fr;
     }
 
+    .analysis-window-controls {
+        align-items: stretch;
+    }
+
     .report-controls {
         width: 100%;
     }
@@ -823,6 +943,19 @@ h2 {
         align-items: flex-start;
         flex-direction: column;
         gap: 10px;
+    }
+
+    .analysis-window-field {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .analysis-window-divider {
+        display: none;
+    }
+
+    .analysis-window-reset {
+        margin-left: 0;
     }
 
     .header-search {
