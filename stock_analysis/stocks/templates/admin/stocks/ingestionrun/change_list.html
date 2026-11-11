@@ -1,0 +1,22 @@
+{% extends "admin/change_list.html" %}
+
+{% block content %}
+<div class="module" style="padding: 16px; margin-bottom: 20px;">
+  <h2>Report sync</h2>
+  <p>Fetch new BofA reports, extract company data, and update the stock database.</p>
+  {% if worker_online %}
+    <p>Worker is active. Queued syncs run in the background.</p>
+  {% else %}
+    <p><strong>Worker is offline.</strong> Sync requests will stay queued until the worker starts.</p>
+  {% endif %}
+  {% if can_sync %}
+  <form method="post" action="{% url 'admin:stocks_ingestionrun_sync' %}">
+    {% csrf_token %}
+    <button type="submit" class="button">Sync reports</button>
+  </form>
+  {% endif %}
+  <p>Refresh this page to check progress. Open a run to see its totals and any errors.</p>
+  <p><a href="{{ message_checkpoints_url }}">View message checkpoints and retry errors</a></p>
+</div>
+{{ block.super }}
+{% endblock %}

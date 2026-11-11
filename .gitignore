@@ -16,3 +16,6 @@ db.sqlite3
 .idea/
 
 mysite_data.json
+ingestion_data/
+.env
+.env.bofa

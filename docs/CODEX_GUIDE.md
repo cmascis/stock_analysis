@@ -8,7 +8,7 @@ This file is optimized for future Codex agents. Read this first for fast orienta
 - The home page is both marketing (anonymous users) and dashboard (authenticated users).
 - Most heavy data shaping happens in `stocks/views.py` through annotations/subqueries.
 - The database is PostgreSQL-only in current settings.
-- Analyst report ingestion is done through `import_reports` from local JSON files.
+- Analyst report ingestion supports `import_reports` from local JSON and a Gmail-backed background pipeline; see `docs/INGESTION.md`.
 - There is no active REST API namespace or separate service layer in the current codebase.
 
 ## Key Entry Points
@@ -78,7 +78,7 @@ Follow existing patterns before introducing new query shapes.
   - `uv run python stock_analysis/manage.py test stocks investor`
 - `stock_detail.html` depends on external Chart.js CDN:
   - `https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js`
-- `import_reports` reads from `stock_analysis/company_jsons/` and skips malformed records.
+- `import_reports` reads from `stock_analysis/company_jsons/` or `--source`, reports invalid records, and exits nonzero if any are invalid.
 - `import_reports` uses `get_or_create` for reports; existing `(stock, as_of_timestamp)` rows are skipped, not updated.
 - The repository does not currently ship `mysite_data.json`; fixture load/dump commands are optional local workflow only.
 - `djangorestframework` is installed but there is no active DRF API surface in the current tree.
@@ -90,7 +90,7 @@ When adding a new report field or metric:
 
 1. Add model field in `stocks/models.py`.
 2. Add migration.
-3. Update import mapping in `import_reports.py`.
+3. Update shared import mapping in `stocks/report_import.py` and ingestion extraction if applicable.
 4. Update relevant view annotations/calculations in `stocks/views.py`.
 5. Update template rendering.
 6. Update/add tests in `stocks/tests.py`.

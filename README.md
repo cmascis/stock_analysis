@@ -6,8 +6,8 @@ Server-rendered Django application for tracking stocks, analyst reports, investo
 
 - Imports analyst report JSON into PostgreSQL.
 - Serves a home page that is marketing for anonymous users and a dashboard for authenticated users.
-- Provides stock quick search, advanced latest-metric search, and stock detail timelines.
-- Tracks investor watchlists and append-only holding snapshots.
+- Provides stock quick search and stock detail timelines.
+- Displays investor watchlists and holding snapshots; management currently requires Django admin.
 
 ## Stack
 
@@ -131,6 +131,19 @@ Required checks on pull requests to `main`:
 See `docs/branching-strategy.md` and `docs/tooling.md` for branch naming and day-to-day workflow.
 Use `docs/branching-strategy.md` section `Exact workflow for a new feature` as the canonical start-to-merge checklist.
 
+## Automated Report Ingestion
+
+The app can fetch BofA reports from Gmail, extract/clean the company records, and
+import them without copying JSON files. Configure `.env.bofa` from
+`.env.bofa.example`, run migrations, and start a separate worker:
+
+```bash
+uv run --env-file .env.bofa python stock_analysis/manage.py ingestion_worker
+```
+
+The worker runs every 15 minutes and processes staff requests from **Report sync**.
+See `docs/INGESTION.md` for setup, a one-report dry-run, permissions, and retries.
+
 ## Codex-Focused Documentation
 
 - `docs/CODEX_GUIDE.md`: fastest onboarding path for future Codex agents
@@ -139,3 +152,5 @@ Use `docs/branching-strategy.md` section `Exact workflow for a new feature` as t
 - `docs/tooling.md`: canonical `uv` and validation command usage
 - `docs/documentation-policy.md`: rules for keeping agent and developer docs current
 - `docs/HISTORY.md`: implementation timeline distilled from git history
+
+See the November 8, 2026 review in `docs/HISTORY.md` for verified app status, known issues, and recommended next work. Advanced search was removed in April 2026; the stock detail analysis window remains in draft PR #15 as of that review.

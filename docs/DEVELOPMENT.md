@@ -115,6 +115,9 @@ uv run python stock_analysis/manage.py dumpdata auth.user investor stocks --natu
 
 ### Import JSON reports
 
+For unattended Gmail downloads and extraction, see `INGESTION.md`. Start the
+`ingestion_worker` command alongside the web app for scheduled and staff-queued syncs.
+
 Put source files in:
 
 - `stock_analysis/company_jsons/`

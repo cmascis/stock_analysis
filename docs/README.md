@@ -10,6 +10,7 @@
   - `HISTORY.md`
 - `CODEX_GUIDE.md`: best first read for a future Codex agent
 - `ARCHITECTURE.md`: domain model and request/data flow
+- `INGESTION.md`: Gmail report sync, worker setup, checkpoints, and staff controls
 - `DEVELOPMENT.md`: setup, commands, and change recipes
 - `HISTORY.md`: project evolution timeline from commits
 - `branching-strategy.md`: branch naming, PR flow, and enforcement policies

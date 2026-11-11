@@ -14,13 +14,15 @@ Rule priority: if any instruction is ambiguous, default to the stricter interpre
 6. `docs/documentation-policy.md`
 7. `docs/HISTORY.md`
 
+For report ingestion work, also read `docs/INGESTION.md`.
+
 ## Architecture Snapshot
 
 - This is a server-rendered Django monolith with two first-party apps: `stocks` and `investor`.
 - Most application behavior lives in function views and templates, especially `stock_analysis/stocks/views.py`.
 - There is no active REST API namespace or separate service layer in the current codebase.
 - The database backend is PostgreSQL-only in current settings; local and CI workflows assume Postgres is reachable.
-- Analyst report ingestion is file-based through `stock_analysis/stocks/management/commands/import_reports.py`, reading `stock_analysis/company_jsons/*.json`.
+- Analyst reports enter through `import_reports` (local JSON) or the Gmail-backed `sync_bofa_reports` / `ingestion_worker` pipeline. See `docs/INGESTION.md`.
 
 ## Key Entry Points
 
@@ -62,6 +64,7 @@ uv run python scripts/uv_ci_local_validation.py
 - Global layout and stock quick-search JS: `stock_analysis/stocks/templates/base.html`
 - Stock theme/CSS: `stock_analysis/stocks/static/stocks/theme.css`
 - Import pipeline: `stock_analysis/stocks/management/commands/import_reports.py`
+- Automated ingestion: `stock_analysis/stocks/ingestion/`, `stock_analysis/stocks/report_import.py`; commands and worker operations in `docs/INGESTION.md`
 - Auth/signup flow: `stock_analysis/investor/views.py`, `stock_analysis/investor/forms.py`
 - Investor lifecycle hook: `stock_analysis/investor/signals.py`
 - Tests: `stock_analysis/stocks/tests.py`, `stock_analysis/investor/tests.py`
