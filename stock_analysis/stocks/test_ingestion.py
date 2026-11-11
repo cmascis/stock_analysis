@@ -2,6 +2,7 @@ import hashlib
 import imaplib
 import json
 import tempfile
+from datetime import UTC, datetime
 from decimal import Decimal
 from email.message import EmailMessage
 from io import BytesIO, StringIO
@@ -22,6 +23,7 @@ from pypdf.generic import ArrayObject, DictionaryObject, NameObject, TextStringO
 
 from stocks.ingestion import runner
 from stocks.ingestion.parsers import extract_company_data, extract_subpage_links
+from stocks.ingestion.schedule import daily_schedule, daily_sync_due
 from stocks.ingestion.source import (
     BofAClient,
     GmailMailbox,
@@ -97,6 +99,56 @@ def pdf():
     output = BytesIO()
     writer.write(output)
     return output.getvalue()
+
+
+class ScheduleTests(SimpleTestCase):
+    def setUp(self):
+        self.slots, self.zone = daily_schedule("11:00,17:00", "America/New_York")
+
+    def test_only_due_after_daily_slots_and_once_per_slot(self):
+        cases = [
+            ("2026-11-12T15:59:00+00:00", None, False),
+            ("2026-11-12T16:00:00+00:00", None, True),
+            ("2026-11-12T21:59:00+00:00", "2026-11-12T16:00:00+00:00", False),
+            ("2026-11-12T22:00:00+00:00", "2026-11-12T16:00:00+00:00", True),
+            ("2026-11-12T23:00:00+00:00", "2026-11-12T22:00:00+00:00", False),
+            ("2026-11-13T05:05:00+00:00", "2026-11-12T22:00:00+00:00", False),
+            ("2026-11-13T16:00:00+00:00", "2026-11-12T22:00:00+00:00", True),
+        ]
+        for now, last, expected in cases:
+            with self.subTest(now=now, last=last):
+                self.assertEqual(
+                    daily_sync_due(
+                        datetime.fromisoformat(now),
+                        datetime.fromisoformat(last) if last else None,
+                        self.slots,
+                        self.zone,
+                    ),
+                    expected,
+                )
+
+    def test_eastern_wall_clock_tracks_daylight_saving(self):
+        for date, utc_hour in (
+            ("2026-03-07", 16),
+            ("2026-03-08", 15),
+            ("2026-10-31", 15),
+            ("2026-11-01", 16),
+        ):
+            with self.subTest(date=date):
+                before = datetime.fromisoformat(
+                    f"{date}T{utc_hour - 1:02d}:59:00+00:00"
+                )
+                at = datetime.fromisoformat(f"{date}T{utc_hour:02d}:00:00+00:00")
+                self.assertFalse(daily_sync_due(before, None, self.slots, self.zone))
+                self.assertTrue(daily_sync_due(at, None, self.slots, self.zone))
+
+    def test_invalid_schedule_fails_before_worker_starts(self):
+        for kwargs in ({"times": "25:00"}, {"times": ""}, {"timezone": "Invalid/Zone"}):
+            with (
+                self.subTest(kwargs=kwargs),
+                self.assertRaisesRegex(CommandError, "Invalid daily schedule"),
+            ):
+                call_command("ingestion_worker", once=True, **kwargs)
 
 
 class ParsingTests(SimpleTestCase):
@@ -470,6 +522,47 @@ class RunnerTests(TestCase):
         self.assertEqual(DailyReport.objects.count(), 1)
         call_command("ingestion_worker", once=True, interval=900, stdout=StringIO())
         self.assertEqual(IngestionRun.objects.count(), 1)
+
+    def test_daily_worker_runs_at_due_time_once_and_manual_queue_runs_before_due(self):
+        now = datetime(2026, 11, 12, 16, 0, tzinfo=UTC)
+        with patch(
+            "stocks.management.commands.ingestion_worker.timezone.now", return_value=now
+        ):
+            call_command(
+                "ingestion_worker",
+                once=True,
+                times="11:00,17:00",
+                timezone="America/New_York",
+                stdout=StringIO(),
+            )
+            # The model captured its default clock before this patch.
+            IngestionRun.objects.update(queued_at=now)
+            call_command(
+                "ingestion_worker",
+                once=True,
+                times="11:00,17:00",
+                timezone="America/New_York",
+                stdout=StringIO(),
+            )
+        self.assertEqual(IngestionRun.objects.count(), 1)
+        self.assertEqual(DailyReport.objects.count(), 1)
+        self.client.html.reset_mock()
+        runner.enqueue_run()
+        with patch(
+            "stocks.management.commands.ingestion_worker.timezone.now",
+            return_value=datetime(2026, 11, 13, 14, tzinfo=UTC),
+        ):
+            call_command(
+                "ingestion_worker",
+                once=True,
+                times="11:00,17:00",
+                timezone="America/New_York",
+                stdout=StringIO(),
+            )
+        self.assertEqual(IngestionRun.objects.count(), 2)
+        self.assertEqual(
+            IngestionRun.objects.first().status, IngestionRun.Status.SUCCEEDED
+        )
 
     def test_missing_configuration_fails_run_visibly(self):
         self.mailbox_patch.stop()
