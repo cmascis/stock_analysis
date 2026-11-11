@@ -141,7 +141,7 @@ import them without copying JSON files. Configure `.env.bofa` from
 uv run --env-file .env.bofa python stock_analysis/manage.py ingestion_worker
 ```
 
-The worker runs every 15 minutes and processes staff requests from **Report sync**.
+The worker syncs daily at 11 a.m. and 5 p.m. Eastern and processes staff requests from **Report sync**.
 See `docs/INGESTION.md` for setup, a one-report dry-run, permissions, and retries.
 
 ## Codex-Focused Documentation

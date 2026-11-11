@@ -31,10 +31,20 @@ uv run --env-file .env.bofa python stock_analysis/manage.py sync_bofa_reports
 uv run --env-file .env.bofa python stock_analysis/manage.py ingestion_worker
 ```
 
-By default the worker schedules a sync 900 seconds after the last non-dry-run run
-finishes. Set `BOFA_SYNC_INTERVAL` or `--interval`; `--interval 0` processes only
-manual requests. `--once` processes at most one queued/due run and exits nonzero on
-failure. A new worker with scheduling enabled starts a run immediately.
+By default the worker syncs daily at **11:00 and 17:00 America/New_York**. Eastern
+daylight saving changes are handled automatically. Set `BOFA_SYNC_TIMES` and
+`BOFA_SYNC_TIMEZONE`, or use `--times 11:00,17:00 --timezone America/New_York`.
+Replace any previous `BOFA_SYNC_INTERVAL` environment setting with these settings.
+
+Each elapsed slot is attempted once, including failed attempts. On restart the
+worker catches up the latest elapsed slot from today if no full sync has been
+queued since it. It does not replay yesterday's missed slots. Dry-runs and limited
+spot checks do not suppress scheduled full syncs. Use **Sync reports** to retry a
+failure immediately; manual requests are processed at any time.
+
+For development, `--interval N` explicitly overrides daily scheduling with an
+interval in seconds; `--interval 0` processes only manual requests. `--once`
+processes at most one queued/due run and exits nonzero on failure.
 
 The sync defaults to inspecting all UIDs, fetching only unfinished messages.
 `--limit N` deliberately restricts inspection to the newest N messages and can
@@ -111,7 +121,8 @@ and workflows already cover these tests and new dependencies; no extra rules nee
 - Pipeline: `stock_analysis/stocks/ingestion/__init__.py`,
   `stock_analysis/stocks/ingestion/parsers.py`,
   `stock_analysis/stocks/ingestion/source.py`,
-  `stock_analysis/stocks/ingestion/runner.py`.
+  `stock_analysis/stocks/ingestion/runner.py`,
+  `stock_analysis/stocks/ingestion/schedule.py`.
 - Commands/shared import: `stock_analysis/stocks/report_import.py`,
   `stock_analysis/stocks/management/commands/import_reports.py`,
   `stock_analysis/stocks/management/commands/sync_bofa_reports.py`,

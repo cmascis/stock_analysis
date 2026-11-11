@@ -194,3 +194,21 @@ gate before any public release. Review the two dependency PRs separately.
 - Live verification covered the latest digest, not every historical publication.
   Inline forwarding can lose original dates, and unavailable company publications
   remain explicit retryable failures. Artifacts currently require manual retention.
+
+## Twice-Daily Report Schedule: November 11, 2026
+
+- Changed automatic syncs from a 900-second interval to 11:00 and 17:00 daily in
+  America/New_York, with automatic daylight saving handling. Staff requests remain
+  immediate; the worker stays available between scheduled report downloads.
+- Added environment/CLI settings for daily times and timezone. The explicit
+  `--interval` development override remains; the former `BOFA_SYNC_INTERVAL`
+  environment setting is replaced by `BOFA_SYNC_TIMES` / `BOFA_SYNC_TIMEZONE`.
+- Restarts catch up only today's latest elapsed slot. A full sync queued after a
+  slot suppresses repeat scheduling, including after failure. Dry-runs and limited
+  spot checks do not consume daily slots. Manual sync retries remain available.
+- Added boundary, restart/deduplication, manual-queue, invalid-configuration, and
+  daylight saving transition coverage. No database migration, CI, hook, IDE run
+  configuration, or helper-script changes are needed for this scheduling change.
+- All 51 tests passed; Django system and migration drift checks passed. Replaced
+  the local interval worker with the daily schedule. The first scheduling test
+  required aligning Django's captured field-default timestamp with its mocked clock.
