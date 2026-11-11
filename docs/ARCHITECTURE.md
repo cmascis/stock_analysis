@@ -85,7 +85,7 @@
 
 ## Import Pipeline
 
-- Command: `import_reports`
+- File command: `import_reports`; automated flow: see below and `docs/INGESTION.md`.
 - Input directory: `stock_analysis/company_jsons/*.json`
 - Behavior:
   - parse list payloads
@@ -96,7 +96,23 @@
   - create stock if missing
   - create report if not existing, then create takeaways and EPS rows
   - skip duplicate report timestamps for same stock
-  - skip malformed records with stderr output rather than aborting the whole import
+  - validate records before writes; report invalid records and exit nonzero after processing valid ones
+
+## Automated Report Ingestion
+
+- `stocks/ingestion` owns Gmail access, BofA downloads, HTML parsing, cleaning,
+  private artifact storage, and resumable message checkpoints.
+- `stocks/report_import.py` provides shared validation/persistence for both the
+  existing `import_reports` command and `sync_bofa_reports`.
+- `ingestion_worker` processes database-queued requests and schedules periodic
+  runs while a PostgreSQL session lock excludes overlapping workers.
+- Staff use the read-only ingestion admin history and permission-checked sync
+  action; network/extraction work never runs inside the web request.
+- `IngestionRun`, `IngestionMessage`, and `IngestionWorker` track progress,
+  completion, failures, and worker presence. Report fingerprints suppress
+  duplicate forwarded content, including identical legacy manual imports.
+- Setup, command flags, date semantics, and retry/storage limits are documented
+  in `docs/INGESTION.md`. BofAStockAnalysis is no longer required at runtime.
 
 ## Frontend Layer
 

@@ -1,6 +1,9 @@
+import re
+from typing import ClassVar
+
+from django.conf import settings
 from django.db import models
 from django.utils import timezone
-import re
 
 
 class UppercaseCharField(models.CharField):
@@ -57,14 +60,12 @@ class Stock(models.Model):
     currency_code = UppercaseCharField(max_length=3, default="USD")
 
     class Meta:
-        constraints = [
+        constraints = (
             models.UniqueConstraint(
                 fields=["ticker", "region"], name="uniq_stock_ticker_region"
             ),
-        ]
-        indexes = [
-            models.Index(fields=["ticker", "region"]),
-        ]
+        )
+        indexes = (models.Index(fields=["ticker", "region"]),)
 
     def __str__(self) -> str:
         return f"{self.ticker} {self.region}"
@@ -72,6 +73,7 @@ class Stock(models.Model):
 
 class DailyReport(models.Model):
     stock = models.ForeignKey(Stock, on_delete=models.CASCADE, related_name="reports")
+    ingestion_fingerprint = models.CharField(max_length=64, blank=True, db_index=True)
 
     link = models.URLField(max_length=500, blank=True, default="")
     as_of_timestamp = models.DateTimeField(
@@ -106,17 +108,17 @@ class DailyReport(models.Model):
     )
 
     class Meta:
-        indexes = [
+        indexes = (
             models.Index(fields=["stock", "-as_of_timestamp"]),
             models.Index(fields=["stock", "rating", "-as_of_timestamp"]),
-        ]
-        ordering = ["-as_of_timestamp"]
-        constraints = [
+        )
+        ordering: ClassVar[list[str]] = ["-as_of_timestamp"]
+        constraints = (
             models.UniqueConstraint(
                 fields=["stock", "as_of_timestamp"],
                 name="uniq_report_as_of_timestamp_per_stock",
-            )
-        ]
+            ),
+        )
 
     def __str__(self) -> str:
         return f"{self.stock} @ {self.as_of_timestamp:%Y-%m-%d %H:%M}"
@@ -132,16 +134,14 @@ class ReportKeyTakeaway(models.Model):
     text = models.TextField()
 
     class Meta:
-        ordering = ["order"]
-        constraints = [
+        ordering: ClassVar[list[str]] = ["order"]
+        constraints = (
             models.UniqueConstraint(
                 fields=["report", "order"],
                 name="uniq_takeaway_order_per_report",
-            )
-        ]
-        indexes = [
-            models.Index(fields=["report", "order"]),
-        ]
+            ),
+        )
+        indexes = (models.Index(fields=["report", "order"]),)
 
     def __str__(self) -> str:
         return f"{self.report} takeaway #{self.order}: {self.text}"
@@ -155,15 +155,67 @@ class EPSForecast(models.Model):
     eps = models.DecimalField(max_digits=18, decimal_places=6)
 
     class Meta:
-        constraints = [
+        constraints = (
             models.UniqueConstraint(
                 fields=["report", "year"], name="uniq_eps_year_per_report"
             ),
-        ]
-        indexes = [
+        )
+        indexes = (
             models.Index(fields=["year"]),
             models.Index(fields=["report", "year"]),
-        ]
+        )
 
     def __str__(self) -> str:
         return f"{self.report} {self.year} EPS={self.eps}"
+
+
+class IngestionRun(models.Model):
+    class Status(models.TextChoices):
+        QUEUED = "queued", "Queued"
+        RUNNING = "running", "Running"
+        SUCCEEDED = "succeeded", "Succeeded"
+        FAILED = "failed", "Failed"
+
+    status = models.CharField(max_length=12, choices=Status, default=Status.QUEUED)
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL
+    )
+    queued_at = models.DateTimeField(default=timezone.now)
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+    stage = models.CharField(max_length=100, blank=True)
+    message_limit = models.PositiveIntegerField(default=0)
+    dry_run = models.BooleanField(default=False)
+    messages_found = models.PositiveIntegerField(default=0)
+    messages_processed = models.PositiveIntegerField(default=0)
+    messages_skipped = models.PositiveIntegerField(default=0)
+    messages_failed = models.PositiveIntegerField(default=0)
+    reports_created = models.PositiveIntegerField(default=0)
+    reports_skipped = models.PositiveIntegerField(default=0)
+    error = models.TextField(blank=True)
+
+    class Meta:
+        ordering: ClassVar[list[str]] = ["-queued_at", "-pk"]
+        constraints = (
+            models.UniqueConstraint(
+                models.Value(1),
+                condition=models.Q(status__in=["queued", "running"]),
+                name="uniq_active_ingestion_run",
+            ),
+        )
+
+    def __str__(self):
+        return f"Report sync #{self.pk} ({self.get_status_display()})"
+
+
+class IngestionMessage(models.Model):
+    source_key = models.CharField(max_length=64, unique=True)
+    pdf_sha256 = models.CharField(max_length=64, blank=True, db_index=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    last_run = models.ForeignKey(IngestionRun, null=True, on_delete=models.SET_NULL)
+    error = models.CharField(max_length=255, blank=True)
+
+
+class IngestionWorker(models.Model):
+    id = models.PositiveSmallIntegerField(primary_key=True, default=1, editable=False)
+    heartbeat_at = models.DateTimeField(default=timezone.now)

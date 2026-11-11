@@ -138,3 +138,12 @@ STATIC_URL = "static/"
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "/"  # where to go after login
 LOGOUT_REDIRECT_URL = "/"  # where to go after logout
+
+# Report ingestion runs in a separate management-command worker.
+BOFA_GMAIL_EMAIL = os.getenv("GMAIL_EMAIL", "").strip()
+BOFA_GMAIL_APP_PASSWORD = "".join(os.getenv("GMAIL_APP_PASSWORD", "").split())
+BOFA_GMAIL_LABEL = os.getenv("GMAIL_LABEL", "BofA Analysis").strip()
+BOFA_INGESTION_DIR = Path(os.getenv("BOFA_INGESTION_DIR", BASE_DIR / "ingestion_data"))
+BOFA_SYNC_INTERVAL = int(os.getenv("BOFA_SYNC_INTERVAL", "900"))
+BOFA_REQUEST_DELAY = float(os.getenv("BOFA_REQUEST_DELAY", "1"))
+BOFA_ALLOWED_HOSTS = ("rsch.baml.com", "rsch.bofa.com", "research1.ml.com")
