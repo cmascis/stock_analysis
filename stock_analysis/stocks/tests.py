@@ -1,5 +1,5 @@
 from decimal import Decimal
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -564,6 +564,401 @@ class HomeViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["chart_price_continuation_points"], [])
         self.assertEqual(response.context["chart_objective_continuation_points"], [])
+
+    def test_stock_detail_defaults_analysis_window_to_earliest_report_and_today(self):
+        stock = Stock.objects.create(
+            ticker="AMD", region="US", company_name="Advanced Micro Devices"
+        )
+        now = timezone.now()
+        earliest_report = DailyReport.objects.create(
+            stock=stock,
+            as_of_timestamp=now - timedelta(days=7),
+            price=Decimal("151.00"),
+        )
+        latest_report = DailyReport.objects.create(
+            stock=stock,
+            as_of_timestamp=now - timedelta(days=2),
+            price=Decimal("156.00"),
+        )
+
+        response = self.client.get(reverse("stock_detail", args=[stock.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["has_report_history"])
+        self.assertEqual(
+            response.context["earliest_report_date"],
+            timezone.localdate(earliest_report.as_of_timestamp),
+        )
+        self.assertEqual(
+            response.context["last_report_date"],
+            timezone.localdate(latest_report.as_of_timestamp),
+        )
+        self.assertEqual(
+            response.context["selected_start_date"],
+            timezone.localdate(earliest_report.as_of_timestamp),
+        )
+        self.assertEqual(response.context["selected_end_date"], timezone.localdate())
+        self.assertEqual(
+            response.context["report_date_options"],
+            [
+                timezone.localdate(earliest_report.as_of_timestamp).isoformat(),
+                timezone.localdate(latest_report.as_of_timestamp).isoformat(),
+            ],
+        )
+        self.assertContains(response, "Analysis Window")
+        self.assertContains(response, 'name="start_date"')
+        self.assertContains(response, 'name="end_date"')
+        self.assertContains(response, "data-analysis-window-form")
+        self.assertContains(
+            response, "Type MM-DD-YYYY and press Enter or leave the bubble."
+        )
+        self.assertContains(response, "Calendar selections apply immediately.")
+        self.assertContains(response, "report-date-options")
+        self.assertContains(response, "data-window-text")
+        self.assertContains(response, "data-window-picker")
+        self.assertContains(response, 'placeholder="MM-DD-YYYY"')
+        self.assertContains(response, "analysis-window-picker-shell")
+        self.assertContains(response, "analysis-window-feedback")
+
+    def test_stock_detail_analysis_window_splits_text_entry_and_picker_behavior(self):
+        stock = Stock.objects.create(
+            ticker="META", region="US", company_name="Meta Platforms"
+        )
+        now = timezone.now()
+        DailyReport.objects.create(
+            stock=stock,
+            as_of_timestamp=now - timedelta(days=7),
+            price=Decimal("505.00"),
+        )
+        DailyReport.objects.create(
+            stock=stock,
+            as_of_timestamp=now - timedelta(days=1),
+            price=Decimal("517.00"),
+        )
+
+        response = self.client.get(reverse("stock_detail", args=[stock.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            'config.textInput.addEventListener("keydown", (event) => {',
+        )
+        self.assertContains(
+            response,
+            'config.field.addEventListener("focusout", (event) => {',
+        )
+        self.assertContains(
+            response,
+            'config.pickerInput.addEventListener("change", () => handlePickerChange(config));',
+        )
+        self.assertContains(
+            response,
+            'config.pickerShell.addEventListener("click", () => openPicker(config));',
+        )
+        self.assertContains(
+            response,
+            'if (typeof config.pickerInput.showPicker === "function") {',
+        )
+        self.assertContains(
+            response,
+            "return `${month}-${day}-${year}`;",
+        )
+        self.assertNotContains(
+            response,
+            "return `${month}/${day}/${year}`;",
+        )
+        self.assertContains(
+            response,
+            'config.field.classList.add("is-invalid");',
+        )
+        self.assertNotContains(
+            response,
+            'startInput.addEventListener("change", markWindowChangePending);',
+        )
+        self.assertNotContains(
+            response,
+            'endInput.addEventListener("change", markWindowChangePending);',
+        )
+        self.assertNotContains(
+            response,
+            'startInput.addEventListener("blur", handleWindowBlur);',
+        )
+        self.assertNotContains(
+            response,
+            'endInput.addEventListener("blur", handleWindowBlur);',
+        )
+
+    def test_stock_detail_filters_reports_and_metrics_by_selected_window(self):
+        stock = Stock.objects.create(
+            ticker="INTC", region="US", company_name="Intel Corp."
+        )
+        now = timezone.now()
+        DailyReport.objects.create(
+            stock=stock,
+            as_of_timestamp=now - timedelta(days=6),
+            price=Decimal("88.00"),
+            price_objective=Decimal("145.00"),
+            upside=Decimal("0.2000"),
+            rating="NEUTRAL",
+            blurb="Old report blurb.",
+        )
+        mid_report = DailyReport.objects.create(
+            stock=stock,
+            as_of_timestamp=now - timedelta(days=3),
+            price=Decimal("97.00"),
+            price_objective=Decimal("130.00"),
+            upside=Decimal("0.1000"),
+            rating="BUY",
+            blurb="Mid window blurb.",
+        )
+        latest_report = DailyReport.objects.create(
+            stock=stock,
+            as_of_timestamp=now - timedelta(days=1),
+            price=Decimal("101.00"),
+            price_objective=None,
+            upside=None,
+            rating="",
+            blurb="Latest window blurb.",
+        )
+
+        response = self.client.get(
+            reverse("stock_detail", args=[stock.id]),
+            {
+                "start_date": timezone.localdate(
+                    mid_report.as_of_timestamp
+                ).isoformat(),
+                "end_date": timezone.localdate(
+                    latest_report.as_of_timestamp
+                ).isoformat(),
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["report_count"], 2)
+        self.assertEqual(
+            [report.pk for report in response.context["reports"]],
+            [latest_report.pk, mid_report.pk],
+        )
+        self.assertEqual(response.context["latest_price"], Decimal("101.000000"))
+        self.assertEqual(
+            response.context["latest_price_objective"], Decimal("130.000000")
+        )
+        self.assertEqual(response.context["latest_upside_pct"], Decimal("10.000000"))
+        self.assertEqual(response.context["latest_rating"], "BUY")
+        self.assertEqual(len(response.context["chart_price_points"]), 2)
+        self.assertEqual(len(response.context["chart_objective_points"]), 1)
+        self.assertEqual(response.context["chart_data_point_count"], 2)
+        self.assertContains(response, "Mid window blurb.")
+        self.assertContains(response, "Latest window blurb.")
+        self.assertNotContains(response, "Old report blurb.")
+
+    def test_stock_detail_invalid_dates_fall_back_to_default_window(self):
+        stock = Stock.objects.create(
+            ticker="UBER", region="US", company_name="Uber Technologies"
+        )
+        now = timezone.now()
+        earliest_report = DailyReport.objects.create(
+            stock=stock,
+            as_of_timestamp=now - timedelta(days=9),
+            price=Decimal("70.00"),
+        )
+        DailyReport.objects.create(
+            stock=stock,
+            as_of_timestamp=now - timedelta(days=2),
+            price=Decimal("77.00"),
+        )
+
+        response = self.client.get(
+            reverse("stock_detail", args=[stock.id]),
+            {"start_date": "not-a-date", "end_date": "still-not-a-date"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.context["selected_start_date"],
+            timezone.localdate(earliest_report.as_of_timestamp),
+        )
+        self.assertEqual(response.context["selected_end_date"], timezone.localdate())
+        self.assertEqual(response.context["report_count"], 2)
+
+    def test_stock_detail_clamps_out_of_bounds_dates(self):
+        stock = Stock.objects.create(
+            ticker="TSM", region="US", company_name="Taiwan Semiconductor"
+        )
+        now = timezone.now()
+        earliest_report = DailyReport.objects.create(
+            stock=stock,
+            as_of_timestamp=now - timedelta(days=11),
+            price=Decimal("140.00"),
+        )
+        DailyReport.objects.create(
+            stock=stock,
+            as_of_timestamp=now - timedelta(days=4),
+            price=Decimal("146.00"),
+        )
+        requested_start = timezone.localdate(
+            earliest_report.as_of_timestamp
+        ) - timedelta(days=30)
+        requested_end = timezone.localdate() + timedelta(days=30)
+
+        response = self.client.get(
+            reverse("stock_detail", args=[stock.id]),
+            {
+                "start_date": requested_start.isoformat(),
+                "end_date": requested_end.isoformat(),
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.context["selected_start_date"],
+            timezone.localdate(earliest_report.as_of_timestamp),
+        )
+        self.assertEqual(response.context["selected_end_date"], timezone.localdate())
+        self.assertEqual(response.context["report_count"], 2)
+
+    def test_stock_detail_reorders_reversed_bounds(self):
+        stock = Stock.objects.create(
+            ticker="ASML", region="US", company_name="ASML Holding"
+        )
+        now = timezone.now()
+        earlier_report = DailyReport.objects.create(
+            stock=stock,
+            as_of_timestamp=now - timedelta(days=6),
+            price=Decimal("935.00"),
+        )
+        later_report = DailyReport.objects.create(
+            stock=stock,
+            as_of_timestamp=now - timedelta(days=2),
+            price=Decimal("950.00"),
+        )
+
+        response = self.client.get(
+            reverse("stock_detail", args=[stock.id]),
+            {
+                "start_date": timezone.localdate(
+                    later_report.as_of_timestamp
+                ).isoformat(),
+                "end_date": timezone.localdate(
+                    earlier_report.as_of_timestamp
+                ).isoformat(),
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.context["selected_start_date"],
+            timezone.localdate(earlier_report.as_of_timestamp),
+        )
+        self.assertEqual(
+            response.context["selected_end_date"],
+            timezone.localdate(later_report.as_of_timestamp),
+        )
+        self.assertEqual(response.context["report_count"], 2)
+
+    def test_stock_detail_gap_window_expands_to_surrounding_reports(self):
+        stock = Stock.objects.create(
+            ticker="SNOW", region="US", company_name="Snowflake Inc."
+        )
+        now = timezone.now()
+        DailyReport.objects.create(
+            stock=stock,
+            as_of_timestamp=now - timedelta(days=10),
+            price=Decimal("150.00"),
+        )
+        earlier_report = DailyReport.objects.create(
+            stock=stock,
+            as_of_timestamp=now - timedelta(days=5),
+            price=Decimal("160.00"),
+        )
+        later_report = DailyReport.objects.create(
+            stock=stock,
+            as_of_timestamp=now - timedelta(days=1),
+            price=Decimal("170.00"),
+        )
+        gap_date = timezone.localdate(now - timedelta(days=3))
+
+        response = self.client.get(
+            reverse("stock_detail", args=[stock.id]),
+            {
+                "start_date": gap_date.isoformat(),
+                "end_date": gap_date.isoformat(),
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.context["selected_start_date"],
+            timezone.localdate(earlier_report.as_of_timestamp),
+        )
+        self.assertEqual(
+            response.context["selected_end_date"],
+            timezone.localdate(later_report.as_of_timestamp),
+        )
+        self.assertEqual(
+            [report.pk for report in response.context["reports"]],
+            [later_report.pk, earlier_report.pk],
+        )
+
+    def test_stock_detail_chart_uses_selected_end_date_boundary(self):
+        stock = Stock.objects.create(
+            ticker="AVGO", region="US", company_name="Broadcom Inc."
+        )
+        now = timezone.now()
+        DailyReport.objects.create(
+            stock=stock,
+            as_of_timestamp=now - timedelta(days=5),
+            price=Decimal("1320.00"),
+            price_objective=Decimal("1400.00"),
+        )
+        DailyReport.objects.create(
+            stock=stock,
+            as_of_timestamp=now - timedelta(days=3),
+            price=Decimal("1345.00"),
+        )
+        selected_end_date = timezone.localdate(now - timedelta(days=2))
+
+        response = self.client.get(
+            reverse("stock_detail", args=[stock.id]),
+            {
+                "start_date": timezone.localdate(now - timedelta(days=5)).isoformat(),
+                "end_date": selected_end_date.isoformat(),
+            },
+        )
+
+        expected_end_exclusive = timezone.make_aware(
+            datetime.combine(
+                selected_end_date + timedelta(days=1),
+                datetime.min.time(),
+            ),
+            timezone.get_current_timezone(),
+        )
+        expected_x_max = int(expected_end_exclusive.timestamp() * 1000) - 1
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["chart_x_max"], expected_x_max)
+        self.assertEqual(
+            response.context["chart_price_continuation_points"][-1]["x"],
+            expected_x_max,
+        )
+        self.assertEqual(
+            response.context["chart_objective_continuation_points"][-1]["x"],
+            expected_x_max,
+        )
+
+    def test_stock_detail_without_reports_hides_analysis_window(self):
+        stock = Stock.objects.create(
+            ticker="PLTR", region="US", company_name="Palantir Technologies"
+        )
+
+        response = self.client.get(reverse("stock_detail", args=[stock.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.context["has_report_history"])
+        self.assertEqual(response.context["report_count"], 0)
+        self.assertContains(response, "No reports found for this stock yet.")
+        self.assertNotContains(response, "Analysis Window")
+        self.assertNotContains(response, 'name="start_date"')
 
 
 class SearchViewTests(TestCase):

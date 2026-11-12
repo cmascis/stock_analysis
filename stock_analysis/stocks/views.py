@@ -1,4 +1,5 @@
-from datetime import timedelta
+from bisect import bisect_left, bisect_right
+from datetime import datetime, time, timedelta
 from decimal import Decimal
 
 from django.db.models import (
@@ -18,6 +19,7 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 
 from investor.models import HoldingSnapshot, Watch
 from stocks.models import DailyReport, Stock
@@ -179,10 +181,81 @@ def _build_objective_coverage(latest_price_report, reports):
     }
 
 
-def _build_chart_continuation_points(latest_report, field_name, now_at_ms, today):
-    if latest_report is None:
+def _clamp_date(value, minimum, maximum):
+    return max(minimum, min(value, maximum))
+
+
+def _build_stock_report_dates(stock):
+    report_dates = []
+    seen_dates = set()
+    report_timestamps = (
+        DailyReport.objects.filter(stock=stock)
+        .order_by("as_of_timestamp")
+        .values_list("as_of_timestamp", flat=True)
+    )
+    for report_at in report_timestamps:
+        report_date = timezone.localdate(report_at)
+        if report_date in seen_dates:
+            continue
+        seen_dates.add(report_date)
+        report_dates.append(report_date)
+    return report_dates
+
+
+def _normalize_stock_detail_date_window(raw_start, raw_end, report_dates, today):
+    earliest_report_date = report_dates[0]
+    last_report_date = report_dates[-1]
+
+    start_date = parse_date(raw_start or "") or earliest_report_date
+    end_date = parse_date(raw_end or "") or today
+
+    start_date = _clamp_date(start_date, earliest_report_date, last_report_date)
+    end_date = _clamp_date(end_date, earliest_report_date, today)
+
+    if start_date > end_date:
+        start_date, end_date = end_date, start_date
+
+    start_index = bisect_left(report_dates, start_date)
+    end_index = bisect_right(report_dates, end_date)
+    if start_index >= end_index:
+        left_index = bisect_right(report_dates, start_date) - 1
+        right_index = bisect_left(report_dates, end_date)
+
+        left_date = report_dates[left_index] if left_index >= 0 else None
+        right_date = (
+            report_dates[right_index] if right_index < len(report_dates) else None
+        )
+
+        if left_date and right_date:
+            start_date = left_date
+            end_date = right_date
+        elif left_date:
+            start_date = left_date
+            end_date = left_date
+        elif right_date:
+            start_date = right_date
+            end_date = right_date
+
+    return start_date, end_date
+
+
+def _start_of_day_at(value):
+    return timezone.make_aware(
+        datetime.combine(value, time.min),
+        timezone.get_current_timezone(),
+    )
+
+
+def _build_chart_x_max(window_end_exclusive):
+    if window_end_exclusive is None:
+        return None
+    return int(window_end_exclusive.timestamp() * 1000) - 1
+
+
+def _build_chart_continuation_points(latest_report, field_name, x_max, end_date):
+    if latest_report is None or x_max is None or end_date is None:
         return []
-    if timezone.localtime(latest_report.as_of_timestamp).date() >= today:
+    if timezone.localdate(latest_report.as_of_timestamp) >= end_date:
         return []
 
     y_value = float(getattr(latest_report, field_name))
@@ -192,18 +265,20 @@ def _build_chart_continuation_points(latest_report, field_name, now_at_ms, today
             "y": y_value,
         },
         {
-            "x": now_at_ms,
+            "x": x_max,
             "y": y_value,
         },
     ]
 
 
 def _build_stock_detail_chart_data(
-    reports, latest_price_report, latest_objective_report
+    reports,
+    latest_price_report,
+    latest_objective_report,
+    window_end_exclusive,
+    end_date,
 ):
-    now = timezone.now()
-    now_at_ms = int(now.timestamp() * 1000)
-    today = timezone.localdate(now)
+    x_max = _build_chart_x_max(window_end_exclusive)
     chart_reports = [
         report
         for report in reversed(reports)
@@ -232,16 +307,16 @@ def _build_stock_detail_chart_data(
         "price_continuation_points": _build_chart_continuation_points(
             latest_price_report,
             "price",
-            now_at_ms,
-            today,
+            x_max,
+            end_date,
         ),
         "objective_continuation_points": _build_chart_continuation_points(
             latest_objective_report,
             "price_objective",
-            now_at_ms,
-            today,
+            x_max,
+            end_date,
         ),
-        "x_max": now_at_ms,
+        "x_max": x_max,
         "has_data": bool(chart_price_points or chart_objective_points),
         "point_count": len(chart_reports),
     }
@@ -610,11 +685,34 @@ def stock_search_suggestions(request):
 
 def stock_detail(request, stock_id):
     stock = get_object_or_404(Stock, pk=stock_id)
-    reports = list(
-        DailyReport.objects.filter(stock=stock)
-        .prefetch_related("key_takeaways", "eps_forecasts")
-        .order_by("-as_of_timestamp")
-    )
+    today = timezone.localdate()
+    report_dates = _build_stock_report_dates(stock)
+
+    earliest_report_date = report_dates[0] if report_dates else None
+    last_report_date = report_dates[-1] if report_dates else None
+    selected_start_date = None
+    selected_end_date = None
+    selected_end_exclusive = None
+    reports = []
+
+    if report_dates:
+        selected_start_date, selected_end_date = _normalize_stock_detail_date_window(
+            request.GET.get("start_date"),
+            request.GET.get("end_date"),
+            report_dates,
+            today,
+        )
+        selected_start_at = _start_of_day_at(selected_start_date)
+        selected_end_exclusive = _start_of_day_at(selected_end_date + timedelta(days=1))
+        reports = list(
+            DailyReport.objects.filter(
+                stock=stock,
+                as_of_timestamp__gte=selected_start_at,
+                as_of_timestamp__lt=selected_end_exclusive,
+            )
+            .prefetch_related("key_takeaways", "eps_forecasts")
+            .order_by("-as_of_timestamp")
+        )
 
     latest_price_report = _get_latest_report_with_value(reports, "price")
     latest_objective_report = _get_latest_report_with_value(reports, "price_objective")
@@ -654,13 +752,24 @@ def stock_detail(request, stock_id):
         reports,
         latest_price_report,
         latest_objective_report,
+        selected_end_exclusive,
+        selected_end_date,
     )
     objective_coverage = _build_objective_coverage(latest_price_report, reports)
 
     context = {
         "stock": stock,
+        "has_report_history": bool(report_dates),
         "reports": reports,
         "report_count": len(reports),
+        "today": today,
+        "earliest_report_date": earliest_report_date,
+        "last_report_date": last_report_date,
+        "selected_start_date": selected_start_date,
+        "selected_end_date": selected_end_date,
+        "report_date_options": [
+            report_date.isoformat() for report_date in report_dates
+        ],
         "latest_price": latest_price_report.price if latest_price_report else None,
         "latest_price_as_of": (
             latest_price_report.as_of_timestamp if latest_price_report else None
